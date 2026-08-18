@@ -417,6 +417,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (savedUser) {
     document.getElementById('authEmail').value = savedUser;
   }
+  // Load local cache immediately so data never flashes empty on refresh
+  localLoad();
 });
 
 /* =========================================================================
@@ -442,7 +444,7 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
 
 /* =========================================================================
-   PERSISTENCE — Firestore (Cloud)
+   PERSISTENCE — Firestore & LocalStorage Backup
 ========================================================================= */
 function localSave(){
   localStorage.setItem('khata_state', JSON.stringify(state));
@@ -450,12 +452,17 @@ function localSave(){
 function localLoad(){
   const raw = localStorage.getItem('khata_state');
   if (raw) {
-    state = JSON.parse(raw);
+    try {
+      state = JSON.parse(raw);
+    } catch(e) {
+      state.categories = DEFAULT_CATEGORIES;
+    }
   } else {
     state.categories = DEFAULT_CATEGORIES;
     localSave();
   }
   checkRecurringExpenses();
+  renderAll();
 }
 
 function checkRecurringExpenses(){
@@ -507,7 +514,8 @@ function checkRecurringExpenses(){
 }
 
 function cloudSaveMeta(){
-  if (!CLOUD_ENABLED || !currentUser) { localSave(); return; }
+  localSave();
+  if (!CLOUD_ENABLED || !currentUser) return;
   db.collection('users').doc(currentUser.uid).set({
     accounts: state.accounts,
     categories: state.categories
@@ -522,14 +530,14 @@ function attachCloudListeners(){
       state.accounts = d.accounts || [];
       state.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATEGORIES;
     } else {
-      state.accounts = [];
-      state.categories = DEFAULT_CATEGORIES;
-      userRef.set({accounts:[], categories:DEFAULT_CATEGORIES});
+      userRef.set({accounts:state.accounts, categories:state.categories});
     }
+    localSave();
     renderAll();
   });
   unsubTx = userRef.collection('transactions').orderBy('date','desc').onSnapshot(snap=>{
     state.transactions = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    localSave();
     renderAll();
   });
   setSyncStatus(true);
@@ -726,7 +734,7 @@ function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
 function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
 
 /* =========================================================================
-   TRANSACTION MODAL LOGIC (With Category Filtering)
+   TRANSACTION MODAL LOGIC
 ========================================================================= */
 let txType = 'debit';
 function setTxType(t){
@@ -762,15 +770,17 @@ function openTxModal(id){
 
   if (id) {
     const t = state.transactions.find(x=>x.id===id);
-    setTxType(t.type);
-    document.getElementById('txAmount').value = t.amount;
-    document.getElementById('txDate').value = t.date;
-    document.getElementById('txTime').value = t.time || '';
-    accSel.value = t.accountId;
-    populateCategoryOptions(t.categoryId);
-    document.getElementById('txSubcategory').value = t.subcategory || '';
-    document.getElementById('txRepeat').value = t.repeat || 'none';
-    document.getElementById('txNote').value = t.note || '';
+    if (t) {
+      setTxType(t.type);
+      document.getElementById('txAmount').value = t.amount;
+      document.getElementById('txDate').value = t.date;
+      document.getElementById('txTime').value = t.time || '';
+      accSel.value = t.accountId;
+      populateCategoryOptions(t.categoryId);
+      document.getElementById('txSubcategory').value = t.subcategory || '';
+      document.getElementById('txRepeat').value = t.repeat || 'none';
+      document.getElementById('txNote').value = t.note || '';
+    }
   } else {
     setTxType('debit');
     document.getElementById('txAmount').value = '';
@@ -818,13 +828,18 @@ function saveTx(){
     repeat: document.getElementById('txRepeat').value,
     note: document.getElementById('txNote').value.trim()
   };
+
+  // Always update local state & backup immediately
+  const idx = state.transactions.findIndex(t=>t.id===id);
+  if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
+  localSave();
+  renderAll();
+
+  // Also sync to cloud if signed in
   if (currentUser) {
     db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).set(tx);
-  } else {
-    const idx = state.transactions.findIndex(t=>t.id===id);
-    if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
-    localSave(); renderAll();
   }
+  
   closeModal('txOverlay');
 }
 
@@ -832,11 +847,13 @@ function deleteCurrentTx(){
   const id = document.getElementById('txId').value;
   if (!id) return;
   if (!confirm('Delete this transaction?')) return;
+
+  state.transactions = state.transactions.filter(t=>t.id!==id);
+  localSave();
+  renderAll();
+
   if (currentUser) {
     db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
-  } else {
-    state.transactions = state.transactions.filter(t=>t.id!==id);
-    localSave(); renderAll();
   }
   closeModal('txOverlay');
 }
@@ -870,14 +887,16 @@ function saveAccount(){
   };
   const idx = state.accounts.findIndex(a=>a.id===id);
   if (idx>-1) state.accounts[idx] = acc; else state.accounts.push(acc);
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
   closeModal('accOverlay');
 }
 function deleteCurrentAccount(){
   const id = document.getElementById('accId').value;
   if (!confirm('Delete this account? Existing transactions will keep showing it as "removed account".')) return;
   state.accounts = state.accounts.filter(a=>a.id!==id);
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
   closeModal('accOverlay');
 }
 
@@ -898,14 +917,16 @@ function saveCategory(){
   const idx = state.categories.findIndex(c=>c.id===id);
   if (idx>-1) state.categories[idx].name = name;
   else state.categories.push({id, name, subs:[]});
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
   closeModal('catOverlay');
 }
 function deleteCurrentCategory(){
   const id = document.getElementById('catId').value;
   if (!confirm('Delete this category and its sub-categories?')) return;
   state.categories = state.categories.filter(c=>c.id!==id);
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
   closeModal('catOverlay');
 }
 function addSubcat(catId){
@@ -915,12 +936,14 @@ function addSubcat(catId){
   const cat = state.categories.find(c=>c.id===catId);
   cat.subs = cat.subs || [];
   if (!cat.subs.includes(val)) cat.subs.push(val);
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
 }
 function removeSubcat(catId, sub){
   const cat = state.categories.find(c=>c.id===catId);
   cat.subs = (cat.subs||[]).filter(s=>s!==sub);
-  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  cloudSaveMeta();
+  renderAll();
 }
 
 /* =========================================================================
