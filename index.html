@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Khata — Expense Tracker</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase v10 Compat SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --paper:#F6F1E4;
+  --paper-line:#E4DAC0;
+  --ink:#1C2A44;
+  --ink-soft:#4A5878;
+  --debit:#A63A3A;
+  --credit:#2E6B4F;
+  --brass:#A9862F;
+  --brass-soft:#EFE3BE;
+  --white:#FFFDF8;
+  --shadow:0 2px 10px rgba(28,42,68,0.08);
+  --radius:14px;
+  font-size:16px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+h1,h2,h3{font-family:'IBM Plex Serif',serif;margin:0;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+
+/* ---- App shell ---- */
+#app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);position:relative;padding-bottom:78px;}
+#authScreen{max-width:420px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px;}
+
+/* ---- Header / passbook card ---- */
+.topbar{
+  padding:18px 18px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px dashed var(--paper-line);
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.stamp{
+  width:34px;height:34px;border-radius:50%;
+  border:2px solid var(--brass);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--brass);font-weight:700;font-size:15px;
+  font-family:'IBM Plex Mono',monospace;
+  transform:rotate(-8deg);
+}
+.brand-title{font-size:19px;font-weight:600;letter-spacing:0.2px;}
+.sync-pill{
+  font-size:11px;padding:4px 9px;border-radius:20px;
+  border:1px solid var(--paper-line);color:var(--ink-soft);
+  display:flex;align-items:center;gap:5px;
+}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#B7AE8F;}
+.sync-pill.on .sync-dot{background:var(--credit);}
+.sync-pill.off .sync-dot{background:var(--debit);}
+
+.balance-card{
+  margin:16px 18px;
+  background:var(--white);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:20px;
+  position:relative;
+  overflow:hidden;
+}
+.balance-card::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--brass);
+}
+.balance-label{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;}
+.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:700;margin-top:4px;}
+.balance-sub{display:flex;gap:18px;margin-top:12px;font-size:13px;}
+.balance-sub span.credit{color:var(--credit);font-weight:600;}
+.balance-sub span.debit{color:var(--debit);font-weight:600;}
+
+/* ---- Tabs content ---- */
+.section{padding:0 18px 18px;display:none;}
+.section.active{display:block;}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 10px;}
+.section-head h2{font-size:16px;}
+.link-btn{background:none;border:none;color:var(--brass);font-weight:600;font-size:13px;padding:4px;}
+
+/* ---- Filter row ---- */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;}
+.filters select{
+  flex:0 0 auto;border:1px solid var(--paper-line);background:var(--white);
+  border-radius:20px;padding:7px 10px;font-size:12px;color:var(--ink);
+}
+
+/* ---- Transaction row ---- */
+.tx-row{
+  background:var(--white);border-radius:12px;padding:12px 14px;margin-bottom:9px;
+  display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);
+  border-left:3px solid var(--paper-line);
+}
+.tx-row.credit{border-left-color:var(--credit);}
+.tx-row.debit{border-left-color:var(--debit);}
+.tx-icon{
+  width:38px;height:38px;border-radius:50%;background:var(--brass-soft);
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;
+}
+.tx-mid{flex:1;min-width:0;}
+.tx-cat{font-weight:600;font-size:14px;}
+.tx-sub{font-size:12px;color:var(--ink-soft);}
+.tx-meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.tx-amt{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;flex:0 0 auto;text-align:right;}
+.tx-amt.credit{color:var(--credit);}
+.tx-amt.debit{color:var(--debit);}
+.empty-note{text-align:center;color:var(--ink-soft);font-size:13px;padding:30px 10px;border:1px dashed var(--paper-line);border-radius:12px;}
+
+/* ---- Editable list rows (accounts / categories) ---- */
+.list-row{
+  background:var(--white);border-radius:12px;padding:12px 14px;margin-bottom:8px;
+  box-shadow:var(--shadow);
+}
+.list-row-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.list-row-name{font-weight:600;font-size:14px;}
+.list-row-type{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;}
+.row-actions{display:flex;gap:6px;}
+.icon-btn{background:var(--paper);border:1px solid var(--paper-line);border-radius:8px;padding:5px 8px;font-size:12px;color:var(--ink);}
+.subchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.chip{
+  background:var(--brass-soft);color:#5c4a15;border-radius:20px;padding:4px 10px;font-size:12px;
+  display:flex;align-items:center;gap:6px;
+}
+.chip button{background:none;border:none;color:#5c4a15;font-size:12px;line-height:1;padding:0;}
+.add-chip-inline{display:flex;gap:6px;margin-top:9px;}
+.add-chip-inline input{flex:1;border:1px solid var(--paper-line);border-radius:8px;padding:6px 8px;font-size:12px;}
+.add-chip-inline button{border:1px solid var(--brass);background:var(--white);color:var(--brass);border-radius:8px;padding:6px 10px;font-size:12px;}
+
+/* ---- Bottom nav ---- */
+.bottomnav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;background:var(--white);
+  border-top:1px solid var(--paper-line);
+  display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  box-shadow:0 -2px 10px rgba(28,42,68,0.06);
+  z-index:30;
+}
+.navbtn{
+  flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 2px;color:var(--ink-soft);font-size:10.5px;border-radius:10px;
+}
+.navbtn.active{color:var(--brass);background:var(--brass-soft);}
+.navbtn .ico{font-size:19px;}
+
+.fab{
+  position:fixed;bottom:78px;left:50%;
+  transform:translateX(calc(-50% + 190px));
+  width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--white);
+  border:none;font-size:26px;box-shadow:0 4px 14px rgba(28,42,68,0.3);z-index:31;
+  display:flex;align-items:center;justify-content:center;
+}
+@media (max-width:480px){ .fab{ transform:translateX(0); right:16px; left:auto; } }
+
+/* ---- Modal ---- */
+.overlay{
+  position:fixed;inset:0;background:rgba(28,42,68,0.42);
+  display:none;align-items:flex-end;justify-content:center;z-index:50;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:var(--paper);width:100%;max-width:480px;border-radius:20px 20px 0 0;
+  padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+  max-height:88vh;overflow-y:auto;
+  animation:slideup .18s ease-out;
+}
+@keyframes slideup{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal h3{font-size:17px;margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+.field input,.field select,.field textarea{
+  width:100%;border:1px solid var(--paper-line);border-radius:10px;padding:11px 12px;
+  font-size:15px;background:var(--white);color:var(--ink);
+}
+.field textarea{resize:vertical;min-height:50px;}
+.seg{display:flex;border:1px solid var(--paper-line);border-radius:10px;overflow:hidden;}
+.seg button{flex:1;padding:10px;background:var(--white);border:none;font-size:13px;font-weight:600;color:var(--ink-soft);}
+.seg button.on.credit{background:var(--credit);color:#fff;}
+.seg button.on.debit{background:var(--debit);color:#fff;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.btn{flex:1;padding:12px 8px;border-radius:12px;border:none;font-weight:600;font-size:13px;text-align:center;}
+.btn.primary{background:var(--ink);color:var(--white);}
+.btn.ghost{background:var(--white);color:var(--ink);border:1px solid var(--paper-line);}
+.btn.danger{background:var(--debit);color:#fff;}
+.close-x{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--ink-soft);}
+
+/* ---- Auth screen ---- */
+.auth-logo{text-align:center;margin-bottom:24px;}
+.auth-logo .stamp{margin:0 auto 10px;width:52px;height:52px;font-size:22px;}
+.auth-card{background:var(--white);border-radius:16px;padding:22px;box-shadow:var(--shadow);}
+.auth-tabs{display:flex;gap:8px;margin-bottom:16px;}
+.auth-tabs button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--paper-line);background:var(--white);font-size:13px;font-weight:600;color:var(--ink-soft);}
+.auth-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.auth-msg{font-size:12.5px;color:var(--debit);margin-top:8px;min-height:16px;}
+.offline-link{display:block;text-align:center;margin-top:16px;font-size:12.5px;color:var(--ink-soft);text-decoration:underline;background:none;border:none;width:100%;}
+.setup-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:18px;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="authScreen">
+  <div class="auth-logo">
+    <div class="stamp">₹</div>
+    <h1 style="font-size:22px;">Khata</h1>
+    <div style="color:var(--ink-soft);font-size:13px;margin-top:2px;">your expenses, synced everywhere</div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button id="tabLogin" class="on" onclick="setAuthTab('login')">Sign in</button>
+      <button id="tabSignup" onclick="setAuthTab('signup')">Create account</button>
+    </div>
+    <div class="field"><label>Email / User ID</label><input id="authEmail" type="text" placeholder="you@example.com or nickname"></div>
+    <div class="field"><label>Password</label><input id="authPass" type="password" placeholder="At least 6 characters"></div>
+    <button class="btn primary" style="width:100%" onclick="doAuth()">Continue</button>
+    <div class="auth-msg" id="authMsg"></div>
+    <button class="offline-link" onclick="useOffline()">Skip — use on this device only (no cloud sync)</button>
+  </div>
+  <div class="setup-note" id="setupNote"></div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <div class="stamp">₹</div>
+      <div class="brand-title">Khata</div>
+    </div>
+    <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
+  </div>
+
+  <div class="balance-card">
+    <div class="balance-label">Total balance</div>
+    <div class="balance-amt mono" id="totalBalance">₹0</div>
+    <div class="balance-sub">
+      <span class="credit">▲ In <span id="totalCredit" class="mono">₹0</span></span>
+      <span class="debit">▼ Out <span id="totalDebit" class="mono">₹0</span></span>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS TAB -->
+  <div class="section active" id="tab-transactions">
+    <div class="filters">
+      <select id="fltAccount"><option value="">All accounts</option></select>
+      <select id="fltCategory"><option value="">All categories</option></select>
+      <select id="fltType"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option></select>
+    </div>
+    <div id="txList"></div>
+  </div>
+
+  <!-- ACCOUNTS TAB -->
+  <div class="section" id="tab-accounts">
+    <div class="section-head"><h2>Accounts &amp; cards</h2><button class="link-btn" onclick="openAccountModal()">+ Add</button></div>
+    <div id="accountsList"></div>
+  </div>
+
+  <!-- CATEGORIES TAB -->
+  <div class="section" id="tab-categories">
+    <div class="section-head"><h2>Categories</h2><button class="link-btn" onclick="openCategoryModal()">+ Add</button></div>
+    <div id="categoriesList"></div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div class="section" id="tab-settings">
+    <div class="section-head"><h2>Settings</h2></div>
+    <div class="list-row">
+      <div class="list-row-name" id="settingsEmail">Offline mode</div>
+      <div class="list-row-type" id="settingsSyncStatus">Not signed in</div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+      <button class="btn ghost" onclick="exportData()">Export data (.json)</button>
+      <button class="btn ghost" onclick="signOutUser()" id="signOutBtn" style="display:none;">Sign out</button>
+    </div>
+    <div class="setup-note" style="margin-top:20px;text-align:left;">
+      <b>Cloud sync active:</b> Connected to Firebase project <code>moneypurse-def5c</code>. Sign in with the same credentials across your devices to sync instantly.
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fabAdd" onclick="openTxModal()" style="display:none;">+</button>
+
+<div class="bottomnav" id="bottomnav" style="display:none;">
+  <button class="navbtn active" data-tab="transactions" onclick="switchTab('transactions')"><span class="ico">📒</span>Ledger</button>
+  <button class="navbtn" data-tab="accounts" onclick="switchTab('accounts')"><span class="ico">💳</span>Accounts</button>
+  <button class="navbtn" data-tab="categories" onclick="switchTab('categories')"><span class="ico">🏷️</span>Categories</button>
+  <button class="navbtn" data-tab="settings" onclick="switchTab('settings')"><span class="ico">⚙️</span>Settings</button>
+</div>
+
+<!-- ============ TRANSACTION MODAL ============ -->
+<div class="overlay" id="txOverlay">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('txOverlay')">✕</button>
+    <h3 id="txModalTitle">Add transaction</h3>
+    <input type="hidden" id="txId">
+    <div class="field">
+      <label>Type</label>
+      <div class="seg">
+        <button type="button" id="segDebit" class="on debit" onclick="setTxType('debit')">Debit (spent)</button>
+        <button type="button" id="segCredit" class="credit" onclick="setTxType('credit')">Credit (received)</button>
+      </div>
+    </div>
+    <div class="field"><label>Amount (₹)</label><input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Date</label><input id="txDate" type="date"></div>
+      <div class="field" style="flex:1;"><label>Time</label><input id="txTime" type="time"></div>
+    </div>
+    <div class="field">
+      <label>Payment mode / account</label>
+      <select id="txAccount"></select>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="txCategory" onchange="populateSubcatOptions()"></select>
+    </div>
+    <div class="field">
+      <label>Sub-category</label>
+      <select id="txSubcategory"></select>
+    </div>
+    <div class="field">
+      <label>Repeat expense</label>
+      <select id="txRepeat">
+        <option value="none">None (One-time)</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly">Bi-weekly (Every 2 weeks)</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
+      <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
+      <button class="btn ghost" onclick="closeModal('txOverlay')">Cancel</button>
+      <button class="btn primary" onclick="saveTx()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACCOUNT MODAL ============ -->
+<div class="overlay" id="accOverlay">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('accOverlay')">✕</button>
+    <h3 id="accModalTitle">Add account</h3>
+    <input type="hidden" id="accId">
+    <div class="field">
+      <label>Type</label>
+      <select id="accType">
+        <option value="bank">Bank account (debit)</option>
+        <option value="credit">Credit card</option>
+        <option value="upi">UPI</option>
+      </select>
+    </div>
+    <div class="field"><label>Bank name</label><input id="accBank" placeholder="e.g. HDFC Bank, SBI, ICICI..."></div>
+    <div class="field"><label>Label / last 4 digits / UPI ID</label><input id="accLabel" placeholder="e.g. Savings •1234 or name@upi"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="accDeleteBtn" style="display:none;" onclick="deleteCurrentAccount()">Delete</button>
+      <button class="btn ghost" onclick="closeModal('accOverlay')">Cancel</button>
+      <button class="btn primary" onclick="saveAccount()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CATEGORY MODAL ============ -->
+<div class="overlay" id="catOverlay">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('catOverlay')">✕</button>
+    <h3 id="catModalTitle">Add category</h3>
+    <input type="hidden" id="catId">
+    <div class="field"><label>Category name</label><input id="catName" placeholder="e.g. Food, Travel, Bills..."></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="catDeleteBtn" style="display:none;" onclick="deleteCurrentCategory()">Delete</button>
+      <button class="btn ghost" onclick="closeModal('catOverlay')">Cancel</button>
+      <button class="btn primary" onclick="saveCategory()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   FIREBASE CONFIG (Connected to MoneyPurse)
+========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDm0rYRWbfYPHloiQrGpDSFciN0uEnOy_s",
+  authDomain: "moneypurse-def5c.firebaseapp.com",
+  projectId: "moneypurse-def5c",
+  storageBucket: "moneypurse-def5c.firebasestorage.app",
+  messagingSenderId: "519065103342",
+  appId: "1:519065103342:web:c9a74bf39e97e6403c7cff"
+};
+
+const CLOUD_ENABLED = true;
+let db = null, auth = null, currentUser = null;
+let unsubUserDoc = null, unsubTx = null;
+
+firebase.initializeApp(firebaseConfig);
+auth = firebase.auth();
+db = firebase.firestore();
+
+window.addEventListener('DOMContentLoaded', () => {
+  const savedUser = localStorage.getItem('khata_last_user');
+  if (savedUser) {
+    document.getElementById('authEmail').value = savedUser;
+  }
+});
+
+/* =========================================================================
+   STATE
+========================================================================= */
+let state = {
+  accounts: [],
+  categories: [],
+  transactions: []
+};
+const DEFAULT_CATEGORIES = [
+  {id: uid(), name:'Food & Dining', subs:['Groceries','Restaurants','Swiggy/Zomato','Snacks']},
+  {id: uid(), name:'Transport', subs:['Fuel','Cab/Auto','Metro/Bus','Parking']},
+  {id: uid(), name:'Shopping', subs:['Clothing','Electronics','Online']},
+  {id: uid(), name:'Bills & Utilities', subs:['Electricity','Mobile/Internet','Rent','Water/Gas']},
+  {id: uid(), name:'Entertainment', subs:['Movies','Subscriptions','Outings']},
+  {id: uid(), name:'Health', subs:['Pharmacy','Doctor','Insurance']},
+  {id: uid(), name:'Income', subs:['Salary','Interest','Refund','Other income']},
+  {id: uid(), name:'Others', subs:['Miscellaneous']}
+];
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
+
+/* =========================================================================
+   PERSISTENCE — Firestore (Cloud)
+========================================================================= */
+function localSave(){
+  localStorage.setItem('khata_state', JSON.stringify(state));
+}
+function localLoad(){
+  const raw = localStorage.getItem('khata_state');
+  if (raw) {
+    state = JSON.parse(raw);
+  } else {
+    state.categories = DEFAULT_CATEGORIES;
+    localSave();
+  }
+  checkRecurringExpenses();
+}
+
+function checkRecurringExpenses(){
+  const todayStr = new Date().toISOString().slice(0,10);
+  const lastCheck = localStorage.getItem('khata_last_recurring_check');
+  if (lastCheck === todayStr) return;
+
+  let added = false;
+  const newTxs = [];
+  state.transactions.forEach(t => {
+    if (t.repeat && t.repeat !== 'none' && t.date) {
+      let nextDate = new Date(t.date + 'T00:00:00');
+      let todayDate = new Date(todayStr + 'T00:00:00');
+      
+      while (nextDate < todayDate) {
+        if (t.repeat === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+        else if (t.repeat === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
+        else if (t.repeat === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
+
+        const nextDateStr = nextDate.toISOString().slice(0,10);
+        if (nextDate <= todayDate) {
+          const exists = state.transactions.some(existing => existing.recurringParentId === t.id && existing.date === nextDateStr);
+          if (!exists) {
+            newTxs.push({
+              id: uid(),
+              recurringParentId: t.id,
+              type: t.type,
+              amount: t.amount,
+              date: nextDateStr,
+              time: t.time || '10:00',
+              accountId: t.accountId,
+              categoryId: t.categoryId,
+              subcategory: t.subcategory,
+              repeat: 'none',
+              note: (t.note || '') + ' (Recurring)'
+            });
+            added = true;
+          }
+        }
+      }
+    }
+  });
+
+  if (added) {
+    state.transactions.push(...newTxs);
+    localSave();
+  }
+  localStorage.setItem('khata_last_recurring_check', todayStr);
+}
+
+function cloudSaveMeta(){
+  if (!CLOUD_ENABLED || !currentUser) { localSave(); return; }
+  db.collection('users').doc(currentUser.uid).set({
+    accounts: state.accounts,
+    categories: state.categories
+  }, {merge:true});
+}
+
+function attachCloudListeners(){
+  const userRef = db.collection('users').doc(currentUser.uid);
+  unsubUserDoc = userRef.onSnapshot(doc=>{
+    if (doc.exists) {
+      const d = doc.data();
+      state.accounts = d.accounts || [];
+      state.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATEGORIES;
+    } else {
+      state.accounts = [];
+      state.categories = DEFAULT_CATEGORIES;
+      userRef.set({accounts:[], categories:DEFAULT_CATEGORIES});
+    }
+    renderAll();
+  });
+  unsubTx = userRef.collection('transactions').orderBy('date','desc').onSnapshot(snap=>{
+    state.transactions = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderAll();
+  });
+  setSyncStatus(true);
+}
+
+function detachCloudListeners(){
+  if (unsubUserDoc) unsubUserDoc();
+  if (unsubTx) unsubTx();
+}
+
+function setSyncStatus(on){
+  const pill = document.getElementById('syncPill');
+  const txt = document.getElementById('syncText');
+  pill.className = 'sync-pill ' + (on ? 'on' : 'off');
+  txt.textContent = on ? 'Synced' : 'Offline';
+  document.getElementById('settingsSyncStatus').textContent = on ? 'Cloud sync active — syncing via Firebase (moneypurse-def5c)' : 'Not signed in';
+}
+
+/* =========================================================================
+   AUTH
+========================================================================= */
+let authMode = 'login';
+function setAuthTab(mode){
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('on', mode==='login');
+  document.getElementById('tabSignup').classList.toggle('on', mode==='signup');
+  document.getElementById('authMsg').textContent = '';
+}
+function doAuth(){
+  const emailInput = document.getElementById('authEmail').value.trim();
+  localStorage.setItem('khata_last_user', emailInput);
+
+  const email = emailInput.includes('@') ? emailInput : emailInput + '@khata.local';
+  const pass = document.getElementById('authPass').value;
+  const msg = document.getElementById('authMsg');
+  if (!email || pass.length < 6) { msg.textContent = 'Enter a valid ID/email and a password (6+ chars).'; return; }
+  const action = authMode === 'login'
+    ? auth.signInWithEmailAndPassword(email, pass)
+    : auth.createUserWithEmailAndPassword(email, pass);
+  action.catch(err => { msg.textContent = err.message; });
+}
+function useOffline(){
+  currentUser = null;
+  localLoad();
+  showApp(false);
+}
+function signOutUser(){
+  if (auth.currentUser) auth.signOut();
+  detachCloudListeners();
+  location.reload();
+}
+
+auth.onAuthStateChanged(user=>{
+  if (user) {
+    currentUser = user;
+    attachCloudListeners();
+    showApp(true, user.email);
+  }
+});
+
+function showApp(cloud, email){
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('bottomnav').style.display = 'flex';
+  document.getElementById('fabAdd').style.display = 'flex';
+  if (cloud) {
+    document.getElementById('settingsEmail').textContent = email;
+    document.getElementById('signOutBtn').style.display = 'block';
+    setSyncStatus(true);
+  } else {
+    const savedUser = localStorage.getItem('khata_last_user') || 'Offline user';
+    document.getElementById('settingsEmail').textContent = savedUser + ' (Offline mode)';
+    setSyncStatus(false);
+  }
+  renderAll();
+}
+
+/* =========================================================================
+   TABS
+========================================================================= */
+function switchTab(tab){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('fabAdd').style.display = (tab==='transactions') ? 'flex' : 'none';
+}
+
+/* =========================================================================
+   RENDER
+========================================================================= */
+function renderAll(){
+  renderBalance();
+  renderFilters();
+  renderTransactions();
+  renderAccounts();
+  renderCategories();
+}
+
+function renderBalance(){
+  let credit=0, debit=0;
+  state.transactions.forEach(t=>{
+    if (t.type==='credit') credit += Number(t.amount);
+    else debit += Number(t.amount);
+  });
+  document.getElementById('totalBalance').textContent = inr(credit-debit);
+  document.getElementById('totalCredit').textContent = inr(credit);
+  document.getElementById('totalDebit').textContent = inr(debit);
+}
+
+function renderFilters(){
+  const accSel = document.getElementById('fltAccount');
+  const catSel = document.getElementById('fltCategory');
+  const curAcc = accSel.value, curCat = catSel.value;
+  accSel.innerHTML = '<option value="">All accounts</option>' + state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+  catSel.innerHTML = '<option value="">All categories</option>' + state.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  accSel.value = curAcc; catSel.value = curCat;
+}
+
+function accountLabel(a){
+  const typeTag = a.type==='bank' ? 'Bank' : a.type==='credit' ? 'Card' : 'UPI';
+  return `${a.bank ? a.bank+' · ' : ''}${a.label || typeTag}`;
+}
+
+function renderTransactions(){
+  const accF = document.getElementById('fltAccount').value;
+  const catF = document.getElementById('fltCategory').value;
+  const typeF = document.getElementById('fltType').value;
+  let list = state.transactions.slice().sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.time||'').localeCompare(a.time||''));
+  if (accF) list = list.filter(t=>t.accountId===accF);
+  if (catF) list = list.filter(t=>t.categoryId===catF);
+  if (typeF) list = list.filter(t=>t.type===typeF);
+
+  const wrap = document.getElementById('txList');
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty-note">No transactions yet. Tap + to add your first entry.</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(t=>{
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const acc = state.accounts.find(a=>a.id===t.accountId);
+    const icon = t.type==='credit' ? '↓' : '↑';
+    return `<div class="tx-row ${t.type}" onclick="openTxModal('${t.id}')">
+      <div class="tx-icon">${icon}</div>
+      <div class="tx-mid">
+        <div class="tx-cat">${escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
+        <div class="tx-sub">${escapeHtml(acc?accountLabel(acc):'—')}</div>
+        <div class="tx-meta">${formatDate(t.date)}${t.time ? ' · '+t.time : ''}${t.note ? ' · '+escapeHtml(t.note) : ''}</div>
+      </div>
+      <div class="tx-amt ${t.type}">${t.type==='debit'?'-':'+'}${inr(t.amount)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAccounts(){
+  const wrap = document.getElementById('accountsList');
+  if (!state.accounts.length) { wrap.innerHTML = '<div class="empty-note">No accounts yet. Add your bank accounts, credit cards, or UPI IDs.</div>'; return; }
+  wrap.innerHTML = state.accounts.map(a=>`
+    <div class="list-row">
+      <div class="list-row-top">
+        <div>
+          <div class="list-row-name">${escapeHtml(accountLabel(a))}</div>
+          <div class="list-row-type">${a.type==='bank'?'Bank debit account':a.type==='credit'?'Credit card':'UPI'}</div>
+        </div>
+        <div class="row-actions">
+          <button class="icon-btn" onclick="openAccountModal('${a.id}')">Edit</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderCategories(){
+  const wrap = document.getElementById('categoriesList');
+  if (!state.categories.length) { wrap.innerHTML = '<div class="empty-note">No categories yet.</div>'; return; }
+  wrap.innerHTML = state.categories.map(c=>`
+    <div class="list-row">
+      <div class="list-row-top">
+        <div class="list-row-name">${escapeHtml(c.name)}</div>
+        <div class="row-actions">
+          <button class="icon-btn" onclick="openCategoryModal('${c.id}')">Rename</button>
+        </div>
+      </div>
+      <div class="subchips">
+        ${(c.subs||[]).map(s=>`<span class="chip">${escapeHtml(s)}<button onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
+      </div>
+      <div class="add-chip-inline">
+        <input placeholder="Add sub-category" id="newsub-${c.id}">
+        <button onclick="addSubcat('${c.id}')">Add</button>
+      </div>
+    </div>`).join('');
+}
+
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
+function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+
+/* =========================================================================
+   TRANSACTION MODAL LOGIC (With Category Filtering)
+========================================================================= */
+let txType = 'debit';
+function setTxType(t){
+  txType = t;
+  document.getElementById('segDebit').classList.toggle('on', t==='debit');
+  document.getElementById('segCredit').classList.toggle('on', t==='credit');
+  populateCategoryOptions();
+}
+
+function populateCategoryOptions(selectedCatId){
+  const catSel = document.getElementById('txCategory');
+  const filteredCategories = state.categories.filter(c => {
+    const isIncomeCat = c.name.toLowerCase() === 'income';
+    return txType === 'credit' ? isIncomeCat : !isIncomeCat;
+  });
+
+  catSel.innerHTML = filteredCategories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('') || '<option value="">No matching category</option>';
+  
+  if (selectedCatId) {
+    catSel.value = selectedCatId;
+  }
+  populateSubcatOptions();
+}
+
+function openTxModal(id){
+  document.getElementById('txId').value = id || '';
+  document.getElementById('txDeleteBtn').style.display = id ? 'block' : 'none';
+  document.getElementById('txCloneBtn').style.display = id ? 'block' : 'none';
+  document.getElementById('txModalTitle').textContent = id ? 'Edit transaction' : 'Add transaction';
+
+  const accSel = document.getElementById('txAccount');
+  accSel.innerHTML = state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('') || '<option value="">Add an account first</option>';
+
+  if (id) {
+    const t = state.transactions.find(x=>x.id===id);
+    setTxType(t.type);
+    document.getElementById('txAmount').value = t.amount;
+    document.getElementById('txDate').value = t.date;
+    document.getElementById('txTime').value = t.time || '';
+    accSel.value = t.accountId;
+    populateCategoryOptions(t.categoryId);
+    document.getElementById('txSubcategory').value = t.subcategory || '';
+    document.getElementById('txRepeat').value = t.repeat || 'none';
+    document.getElementById('txNote').value = t.note || '';
+  } else {
+    setTxType('debit');
+    document.getElementById('txAmount').value = '';
+    const now = new Date();
+    document.getElementById('txDate').value = now.toISOString().slice(0,10);
+    document.getElementById('txTime').value = now.toTimeString().slice(0,5);
+    populateCategoryOptions();
+    document.getElementById('txRepeat').value = 'none';
+    document.getElementById('txNote').value = '';
+  }
+  openModal('txOverlay');
+}
+
+function cloneCurrentTx(){
+  document.getElementById('txId').value = '';
+  document.getElementById('txDeleteBtn').style.display = 'none';
+  document.getElementById('txCloneBtn').style.display = 'none';
+  document.getElementById('txModalTitle').textContent = 'Clone transaction (New item)';
+  document.getElementById('txAmount').value = '';
+  document.getElementById('txNote').value = '';
+  document.getElementById('txAmount').focus();
+}
+
+function populateSubcatOptions(){
+  const catId = document.getElementById('txCategory').value;
+  const cat = state.categories.find(c=>c.id===catId);
+  const subSel = document.getElementById('txSubcategory');
+  subSel.innerHTML = (cat && cat.subs || []).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('') || '<option value="">—</option>';
+}
+
+function saveTx(){
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
+  if (!document.getElementById('txAccount').value) { alert('Add an account first (Accounts tab).'); return; }
+  const id = document.getElementById('txId').value || uid();
+  const tx = {
+    id,
+    type: txType,
+    amount,
+    date: document.getElementById('txDate').value,
+    time: document.getElementById('txTime').value,
+    accountId: document.getElementById('txAccount').value,
+    categoryId: document.getElementById('txCategory').value,
+    subcategory: document.getElementById('txSubcategory').value,
+    repeat: document.getElementById('txRepeat').value,
+    note: document.getElementById('txNote').value.trim()
+  };
+  if (currentUser) {
+    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).set(tx);
+  } else {
+    const idx = state.transactions.findIndex(t=>t.id===id);
+    if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
+    localSave(); renderAll();
+  }
+  closeModal('txOverlay');
+}
+
+function deleteCurrentTx(){
+  const id = document.getElementById('txId').value;
+  if (!id) return;
+  if (!confirm('Delete this transaction?')) return;
+  if (currentUser) {
+    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
+  } else {
+    state.transactions = state.transactions.filter(t=>t.id!==id);
+    localSave(); renderAll();
+  }
+  closeModal('txOverlay');
+}
+
+/* =========================================================================
+   ACCOUNT MODAL LOGIC
+========================================================================= */
+function openAccountModal(id){
+  document.getElementById('accId').value = id || '';
+  document.getElementById('accDeleteBtn').style.display = id ? 'block' : 'none';
+  document.getElementById('accModalTitle').textContent = id ? 'Edit account' : 'Add account';
+  if (id) {
+    const a = state.accounts.find(x=>x.id===id);
+    document.getElementById('accType').value = a.type;
+    document.getElementById('accBank').value = a.bank || '';
+    document.getElementById('accLabel').value = a.label || '';
+  } else {
+    document.getElementById('accType').value = 'bank';
+    document.getElementById('accBank').value = '';
+    document.getElementById('accLabel').value = '';
+  }
+  openModal('accOverlay');
+}
+function saveAccount(){
+  const id = document.getElementById('accId').value || uid();
+  const acc = {
+    id,
+    type: document.getElementById('accType').value,
+    bank: document.getElementById('accBank').value.trim(),
+    label: document.getElementById('accLabel').value.trim()
+  };
+  const idx = state.accounts.findIndex(a=>a.id===id);
+  if (idx>-1) state.accounts[idx] = acc; else state.accounts.push(acc);
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  closeModal('accOverlay');
+}
+function deleteCurrentAccount(){
+  const id = document.getElementById('accId').value;
+  if (!confirm('Delete this account? Existing transactions will keep showing it as "removed account".')) return;
+  state.accounts = state.accounts.filter(a=>a.id!==id);
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  closeModal('accOverlay');
+}
+
+/* =========================================================================
+   CATEGORY MODAL LOGIC
+========================================================================= */
+function openCategoryModal(id){
+  document.getElementById('catId').value = id || '';
+  document.getElementById('catDeleteBtn').style.display = id ? 'block' : 'none';
+  document.getElementById('catModalTitle').textContent = id ? 'Rename category' : 'Add category';
+  document.getElementById('catName').value = id ? state.categories.find(c=>c.id===id).name : '';
+  openModal('catOverlay');
+}
+function saveCategory(){
+  const name = document.getElementById('catName').value.trim();
+  if (!name) { alert('Enter a category name.'); return; }
+  const id = document.getElementById('catId').value || uid();
+  const idx = state.categories.findIndex(c=>c.id===id);
+  if (idx>-1) state.categories[idx].name = name;
+  else state.categories.push({id, name, subs:[]});
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  closeModal('catOverlay');
+}
+function deleteCurrentCategory(){
+  const id = document.getElementById('catId').value;
+  if (!confirm('Delete this category and its sub-categories?')) return;
+  state.categories = state.categories.filter(c=>c.id!==id);
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+  closeModal('catOverlay');
+}
+function addSubcat(catId){
+  const input = document.getElementById('newsub-'+catId);
+  const val = input.value.trim();
+  if (!val) return;
+  const cat = state.categories.find(c=>c.id===catId);
+  cat.subs = cat.subs || [];
+  if (!cat.subs.includes(val)) cat.subs.push(val);
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+}
+function removeSubcat(catId, sub){
+  const cat = state.categories.find(c=>c.id===catId);
+  cat.subs = (cat.subs||[]).filter(s=>s!==sub);
+  cloudSaveMeta(); if(!currentUser){localSave();} renderAll();
+}
+
+/* =========================================================================
+   MISC
+========================================================================= */
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'khata-export.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
