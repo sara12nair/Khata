@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Khata — Expense Tracker</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F6F1E4">
+<link rel="apple-touch-icon" href="data:,">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Khata">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -12,6 +19,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js for Insights tab -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
 <style>
 :root{
@@ -211,6 +221,89 @@ input,select,textarea{font-family:inherit;}
 .auth-msg{font-size:12.5px;color:var(--debit);margin-top:8px;min-height:16px;}
 .offline-link{display:block;text-align:center;margin-top:16px;font-size:12.5px;color:var(--ink-soft);text-decoration:underline;background:none;border:none;width:100%;}
 .setup-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:18px;line-height:1.5;}
+
+/* ---- Period chips (Today / Week / Month / All) ---- */
+.period-chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;}
+.period-chips button{
+  flex:0 0 auto;border:1px solid var(--paper-line);background:var(--white);color:var(--ink-soft);
+  border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;
+}
+.period-chips button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+/* ---- Sort / search row ---- */
+.toolrow{display:flex;gap:8px;margin-bottom:8px;}
+.toolrow input[type="text"]{
+  flex:1;border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 12px;font-size:12.5px;color:var(--ink);
+}
+.toolrow select{
+  border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 10px;font-size:12px;color:var(--ink);
+}
+.sort-dir-btn{
+  border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 10px;font-size:13px;color:var(--ink);flex:0 0 auto;
+}
+.amount-range{display:flex;gap:8px;margin-bottom:8px;}
+.amount-range input{
+  flex:1;border:1px solid var(--paper-line);background:var(--white);border-radius:10px;
+  padding:7px 10px;font-size:12.5px;color:var(--ink);
+}
+.filters-toggle{background:none;border:none;color:var(--brass);font-weight:600;font-size:12px;padding:2px 0 8px;}
+
+/* ---- Sync pill states, incl. queued ---- */
+.sync-pill.queued .sync-dot{background:var(--brass);}
+.sync-pill.queued{color:var(--brass);}
+
+/* ---- Today stat on balance card ---- */
+.balance-today{
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--paper-line);
+  font-size:12.5px;color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;
+}
+.balance-today b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-size:14px;}
+
+/* ---- Insights tab ---- */
+.insight-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;}
+.insight-card h3{font-size:14px;margin-bottom:10px;}
+.chart-wrap{position:relative;max-width:240px;margin:0 auto;}
+.legend-list{margin-top:12px;display:flex;flex-direction:column;gap:7px;}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+.legend-swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
+.legend-name{flex:1;color:var(--ink);}
+.legend-amt{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12px;}
+
+.avg-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.avg-table th{text-align:left;color:var(--ink-soft);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;padding:4px 6px;border-bottom:1px solid var(--paper-line);}
+.avg-table td{padding:8px 6px;border-bottom:1px solid var(--paper-line);}
+.avg-table td.mono{font-family:'IBM Plex Mono',monospace;}
+.trend-up{color:var(--debit);font-weight:700;}
+.trend-down{color:var(--credit);font-weight:700;}
+.trend-flat{color:var(--ink-soft);}
+
+/* ---- Price tracker ---- */
+.price-item-picker{margin-bottom:12px;}
+.price-item-picker select{width:100%;border:1px solid var(--paper-line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--white);color:var(--ink);}
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--paper-line);font-size:12.5px;}
+.price-row:last-child{border-bottom:none;}
+.price-row .pr-shop{font-weight:600;}
+.price-row .pr-meta{color:var(--ink-soft);font-size:11.5px;}
+.price-row .pr-rate{font-family:'IBM Plex Mono',monospace;font-weight:700;text-align:right;}
+.shop-rank{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12.5px;}
+.shop-rank .rank-badge{
+  width:20px;height:20px;border-radius:50%;background:var(--brass-soft);color:#5c4a15;
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-right:8px;
+}
+.shop-rank-row{display:flex;align-items:center;flex:1;}
+
+/* ---- Item & shop optional section in tx modal ---- */
+.item-toggle{
+  background:var(--white);border:1px dashed var(--brass);color:var(--brass);
+  border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;width:100%;text-align:left;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
+}
+.item-fields{display:none;background:var(--paper);border-radius:10px;padding:2px 0 2px;margin-bottom:4px;}
+.item-fields.show{display:block;}
+.unit-hint{font-size:11.5px;color:var(--brass);margin-top:-6px;margin-bottom:12px;font-family:'IBM Plex Mono',monospace;}
 </style>
 </head>
 <body>
@@ -253,14 +346,40 @@ input,select,textarea{font-family:inherit;}
       <span class="credit">▲ In <span id="totalCredit" class="mono">₹0</span></span>
       <span class="debit">▼ Out <span id="totalDebit" class="mono">₹0</span></span>
     </div>
+    <div class="balance-today">
+      <span>Spent today</span>
+      <b id="spentToday" class="mono">₹0</b>
+    </div>
   </div>
 
   <!-- TRANSACTIONS TAB -->
   <div class="section active" id="tab-transactions">
-    <div class="filters">
-      <select id="fltAccount"><option value="">All accounts</option></select>
-      <select id="fltCategory"><option value="">All categories</option></select>
-      <select id="fltType"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option></select>
+    <div class="period-chips" id="periodChips">
+      <button class="on" data-period="today" onclick="setLedgerPeriod('today')">Today</button>
+      <button data-period="week" onclick="setLedgerPeriod('week')">This week</button>
+      <button data-period="month" onclick="setLedgerPeriod('month')">This month</button>
+      <button data-period="all" onclick="setLedgerPeriod('all')">All</button>
+    </div>
+    <div class="toolrow">
+      <input type="text" id="txSearch" placeholder="Search note, item, shop…" oninput="renderTransactions()">
+      <select id="sortBy" onchange="renderTransactions()">
+        <option value="date">Date</option>
+        <option value="amount">Amount</option>
+      </select>
+      <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()">↓</button>
+    </div>
+    <button class="filters-toggle" onclick="toggleMoreFilters()" id="moreFiltersBtn">+ More filters</button>
+    <div id="moreFilters" style="display:none;">
+      <div class="filters">
+        <select id="fltAccount" onchange="renderTransactions()"><option value="">All accounts</option></select>
+        <select id="fltCategory" onchange="onFltCategoryChange()"><option value="">All categories</option></select>
+        <select id="fltSubcategory" onchange="renderTransactions()"><option value="">All sub-categories</option></select>
+        <select id="fltType" onchange="renderTransactions()"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option></select>
+      </div>
+      <div class="amount-range">
+        <input type="number" id="fltMinAmt" placeholder="Min ₹" oninput="renderTransactions()">
+        <input type="number" id="fltMaxAmt" placeholder="Max ₹" oninput="renderTransactions()">
+      </div>
     </div>
     <div id="txList"></div>
   </div>
@@ -275,6 +394,41 @@ input,select,textarea{font-family:inherit;}
   <div class="section" id="tab-categories">
     <div class="section-head"><h2>Categories</h2><button class="link-btn" onclick="openCategoryModal()">+ Add</button></div>
     <div id="categoriesList"></div>
+  </div>
+
+  <!-- INSIGHTS TAB -->
+  <div class="section" id="tab-insights">
+    <div class="section-head"><h2>Insights</h2></div>
+
+    <div class="insight-card">
+      <h3>Spend by category</h3>
+      <div class="period-chips" id="insightChips">
+        <button data-period="month" class="on" onclick="setInsightPeriod('month')">This month</button>
+        <button data-period="3m" onclick="setInsightPeriod('3m')">3 months</button>
+        <button data-period="6m" onclick="setInsightPeriod('6m')">6 months</button>
+        <button data-period="all" onclick="setInsightPeriod('all')">All time</button>
+      </div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      <div class="legend-list" id="pieLegend"></div>
+    </div>
+
+    <div class="insight-card">
+      <h3>3-month vs 6-month average spend</h3>
+      <table class="avg-table" id="avgTable">
+        <thead><tr><th>Category</th><th>3-mo avg</th><th>6-mo avg</th><th>Trend</th></tr></thead>
+        <tbody id="avgTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="insight-card">
+      <h3>Price tracker — same item, different shops</h3>
+      <div class="price-item-picker">
+        <select id="priceItemSelect" onchange="renderPriceTracker()">
+          <option value="">Select an item you've tagged…</option>
+        </select>
+      </div>
+      <div id="priceTrackerBody"></div>
+    </div>
   </div>
 
   <!-- SETTINGS TAB -->
@@ -298,6 +452,7 @@ input,select,textarea{font-family:inherit;}
 
 <div class="bottomnav" id="bottomnav" style="display:none;">
   <button class="navbtn active" data-tab="transactions" onclick="switchTab('transactions')"><span class="ico">📒</span>Ledger</button>
+  <button class="navbtn" data-tab="insights" onclick="switchTab('insights')"><span class="ico">📊</span>Insights</button>
   <button class="navbtn" data-tab="accounts" onclick="switchTab('accounts')"><span class="ico">💳</span>Accounts</button>
   <button class="navbtn" data-tab="categories" onclick="switchTab('categories')"><span class="ico">🏷️</span>Categories</button>
   <button class="navbtn" data-tab="settings" onclick="switchTab('settings')"><span class="ico">⚙️</span>Settings</button>
@@ -343,6 +498,40 @@ input,select,textarea{font-family:inherit;}
       </select>
     </div>
     <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
+
+    <button type="button" class="item-toggle" id="itemToggleBtn" onclick="toggleItemFields()">
+      <span>+ Item &amp; shop details (optional)</span><span id="itemToggleIcon">▾</span>
+    </button>
+    <div class="item-fields" id="itemFields">
+      <div class="field">
+        <label>Item name <span style="font-weight:400;">(for price tracking, e.g. Red Rice)</span></label>
+        <input id="txItemName" list="itemNameOptions" placeholder="e.g. Red Rice" oninput="updateUnitHint()">
+        <datalist id="itemNameOptions"></datalist>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Quantity</label><input id="txQty" type="number" min="0" step="0.01" placeholder="e.g. 5" oninput="updateUnitHint()"></div>
+        <div class="field" style="flex:1;">
+          <label>Unit</label>
+          <select id="txUnit" onchange="updateUnitHint()">
+            <option value="">—</option>
+            <option value="kg">kg</option>
+            <option value="g">g</option>
+            <option value="litre">litre</option>
+            <option value="ml">ml</option>
+            <option value="pcs">pcs</option>
+            <option value="dozen">dozen</option>
+            <option value="packet">packet</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Shop <span style="font-weight:400;">(optional)</span></label>
+        <input id="txShop" list="shopOptions" placeholder="e.g. Ramesh Stores">
+        <datalist id="shopOptions"></datalist>
+      </div>
+    </div>
+    <div class="unit-hint" id="unitHint" style="display:none;"></div>
+
     <div class="modal-actions">
       <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
       <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
@@ -444,7 +633,12 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
 
 /* =========================================================================
-   PERSISTENCE — Firestore & LocalStorage Backup
+   PERSISTENCE — Local-first write queue, flushed to Firestore
+   Every change saves to localStorage immediately (never lost, works
+   offline), then queues a matching cloud write. The queue is flushed
+   whenever we're online + signed in — including right after sign-in,
+   so nothing entered while offline/unauthenticated gets overwritten
+   by the cloud snapshot.
 ========================================================================= */
 function localSave(){
   localStorage.setItem('khata_state', JSON.stringify(state));
@@ -509,20 +703,76 @@ function checkRecurringExpenses(){
   if (added) {
     state.transactions.push(...newTxs);
     localSave();
+    newTxs.forEach(t => queueOp({kind:'tx-set', id:t.id, payload:t}));
+    flushQueue();
   }
   localStorage.setItem('khata_last_recurring_check', todayStr);
 }
 
+/* ---- Write queue: survives offline / not-signed-in, flushes later ---- */
+function getQueue(){
+  try { return JSON.parse(localStorage.getItem('khata_sync_queue') || '[]'); }
+  catch(e) { return []; }
+}
+function setQueue(q){
+  localStorage.setItem('khata_sync_queue', JSON.stringify(q));
+  updateQueueIndicator(q.length);
+}
+function queueOp(op){
+  let q = getQueue();
+  if (op.kind === 'meta') {
+    q = q.filter(o => o.kind !== 'meta'); // last-write-wins for meta
+  } else {
+    q = q.filter(o => o.id !== op.id); // later op on same tx supersedes
+  }
+  q.push(op);
+  setQueue(q);
+}
+function flushQueue(){
+  const q = getQueue();
+  updateQueueIndicator(q.length);
+  if (!CLOUD_ENABLED || !currentUser || !navigator.onLine || !q.length) return;
+  const userRef = db.collection('users').doc(currentUser.uid);
+  const jobs = q.map(op => {
+    if (op.kind === 'tx-set') return userRef.collection('transactions').doc(op.id).set(op.payload);
+    if (op.kind === 'tx-delete') return userRef.collection('transactions').doc(op.id).delete();
+    if (op.kind === 'meta') return userRef.set({accounts: op.payload.accounts, categories: op.payload.categories}, {merge:true});
+    return Promise.resolve();
+  });
+  Promise.all(jobs).then(() => {
+    setQueue([]);
+  }).catch(err => {
+    console.warn('Sync queue flush failed — will retry when back online.', err);
+  });
+}
+function updateQueueIndicator(n){
+  const pill = document.getElementById('syncPill');
+  const txt = document.getElementById('syncText');
+  if (!pill) return;
+  if (n > 0) {
+    pill.className = 'sync-pill queued';
+    txt.textContent = currentUser ? `Syncing… (${n})` : `Saved locally (${n} to sync)`;
+  } else if (currentUser) {
+    pill.className = 'sync-pill on';
+    txt.textContent = 'Synced';
+  } else {
+    pill.className = 'sync-pill off';
+    txt.textContent = 'Offline';
+  }
+}
+window.addEventListener('online', flushQueue);
+
 function cloudSaveMeta(){
   localSave();
-  if (!CLOUD_ENABLED || !currentUser) return;
-  db.collection('users').doc(currentUser.uid).set({
-    accounts: state.accounts,
-    categories: state.categories
-  }, {merge:true});
+  queueOp({kind:'meta', payload:{accounts: state.accounts, categories: state.categories}});
+  flushQueue();
 }
 
 function attachCloudListeners(){
+  // Push anything saved while offline/unauthenticated BEFORE letting the
+  // cloud snapshot take over, so local-only entries are merged up rather
+  // than silently overwritten.
+  flushQueue();
   const userRef = db.collection('users').doc(currentUser.uid);
   unsubUserDoc = userRef.onSnapshot(doc=>{
     if (doc.exists) {
@@ -549,10 +799,7 @@ function detachCloudListeners(){
 }
 
 function setSyncStatus(on){
-  const pill = document.getElementById('syncPill');
-  const txt = document.getElementById('syncText');
-  pill.className = 'sync-pill ' + (on ? 'on' : 'off');
-  txt.textContent = on ? 'Synced' : 'Offline';
+  updateQueueIndicator(getQueue().length);
   document.getElementById('settingsSyncStatus').textContent = on ? 'Cloud sync active — syncing via Firebase (moneypurse-def5c)' : 'Not signed in';
 }
 
@@ -623,28 +870,64 @@ function switchTab(tab){
   document.getElementById('tab-'+tab).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('fabAdd').style.display = (tab==='transactions') ? 'flex' : 'none';
+  if (tab === 'insights') renderInsights();
 }
 
 /* =========================================================================
    RENDER
 ========================================================================= */
+let ledgerPeriod = 'today';
+let sortDir = 'desc';
+let insightPeriod = 'month';
+let pieChartInstance = null;
+
 function renderAll(){
   renderBalance();
   renderFilters();
   renderTransactions();
   renderAccounts();
   renderCategories();
+  populateItemShopDatalists();
+  if (document.getElementById('tab-insights') && document.getElementById('tab-insights').classList.contains('active')) {
+    renderInsights();
+  }
+}
+
+/* ---- Date range helpers ---- */
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function startOfWeekStr(){
+  const d = new Date(); const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - day);
+  return d.toISOString().slice(0,10);
+}
+function startOfMonthStr(){
+  const d = new Date(); d.setDate(1);
+  return d.toISOString().slice(0,10);
+}
+function monthsAgoStr(n){
+  const d = new Date(); d.setMonth(d.getMonth() - n);
+  return d.toISOString().slice(0,10);
+}
+function ledgerDateFilter(t){
+  if (!t.date) return ledgerPeriod === 'all';
+  if (ledgerPeriod === 'today') return t.date === todayStr();
+  if (ledgerPeriod === 'week') return t.date >= startOfWeekStr();
+  if (ledgerPeriod === 'month') return t.date >= startOfMonthStr();
+  return true; // all
 }
 
 function renderBalance(){
-  let credit=0, debit=0;
+  let credit=0, debit=0, today=0;
+  const t0 = todayStr();
   state.transactions.forEach(t=>{
     if (t.type==='credit') credit += Number(t.amount);
     else debit += Number(t.amount);
+    if (t.type==='debit' && t.date===t0) today += Number(t.amount);
   });
   document.getElementById('totalBalance').textContent = inr(credit-debit);
   document.getElementById('totalCredit').textContent = inr(credit);
   document.getElementById('totalDebit').textContent = inr(debit);
+  document.getElementById('spentToday').textContent = inr(today);
 }
 
 function renderFilters(){
@@ -654,6 +937,35 @@ function renderFilters(){
   accSel.innerHTML = '<option value="">All accounts</option>' + state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
   catSel.innerHTML = '<option value="">All categories</option>' + state.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   accSel.value = curAcc; catSel.value = curCat;
+  onFltCategoryChange(true);
+}
+
+function onFltCategoryChange(preserveSub){
+  const catF = document.getElementById('fltCategory').value;
+  const subSel = document.getElementById('fltSubcategory');
+  const curSub = subSel.value;
+  const cat = state.categories.find(c=>c.id===catF);
+  subSel.innerHTML = '<option value="">All sub-categories</option>' + ((cat && cat.subs)||[]).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if (preserveSub) subSel.value = curSub;
+  renderTransactions();
+}
+
+function setLedgerPeriod(p){
+  ledgerPeriod = p;
+  document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
+  renderTransactions();
+}
+function toggleMoreFilters(){
+  const box = document.getElementById('moreFilters');
+  const btn = document.getElementById('moreFiltersBtn');
+  const show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? '− Fewer filters' : '+ More filters';
+}
+function toggleSortDir(){
+  sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sortDirBtn').textContent = sortDir==='desc' ? '↓' : '↑';
+  renderTransactions();
 }
 
 function accountLabel(a){
@@ -664,27 +976,53 @@ function accountLabel(a){
 function renderTransactions(){
   const accF = document.getElementById('fltAccount').value;
   const catF = document.getElementById('fltCategory').value;
+  const subF = document.getElementById('fltSubcategory').value;
   const typeF = document.getElementById('fltType').value;
-  let list = state.transactions.slice().sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.time||'').localeCompare(a.time||''));
+  const minAmt = parseFloat(document.getElementById('fltMinAmt').value);
+  const maxAmt = parseFloat(document.getElementById('fltMaxAmt').value);
+  const q = (document.getElementById('txSearch').value || '').trim().toLowerCase();
+  const sortBy = document.getElementById('sortBy').value;
+
+  let list = state.transactions.slice().filter(ledgerDateFilter);
   if (accF) list = list.filter(t=>t.accountId===accF);
   if (catF) list = list.filter(t=>t.categoryId===catF);
+  if (subF) list = list.filter(t=>t.subcategory===subF);
   if (typeF) list = list.filter(t=>t.type===typeF);
+  if (!isNaN(minAmt)) list = list.filter(t=>Number(t.amount)>=minAmt);
+  if (!isNaN(maxAmt)) list = list.filter(t=>Number(t.amount)<=maxAmt);
+  if (q) list = list.filter(t =>
+    (t.note||'').toLowerCase().includes(q) ||
+    (t.itemName||'').toLowerCase().includes(q) ||
+    (t.shop||'').toLowerCase().includes(q)
+  );
+
+  list.sort((a,b)=>{
+    let cmp;
+    if (sortBy === 'amount') cmp = Number(a.amount) - Number(b.amount);
+    else cmp = (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'');
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
 
   const wrap = document.getElementById('txList');
   if (!list.length) {
-    wrap.innerHTML = '<div class="empty-note">No transactions yet. Tap + to add your first entry.</div>';
+    wrap.innerHTML = '<div class="empty-note">No transactions in this view. Tap + to add one, or adjust filters.</div>';
     return;
   }
   wrap.innerHTML = list.map(t=>{
     const cat = state.categories.find(c=>c.id===t.categoryId);
     const acc = state.accounts.find(a=>a.id===t.accountId);
     const icon = t.type==='credit' ? '↓' : '↑';
+    const itemBits = [];
+    if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
+    if (t.shop) itemBits.push(escapeHtml(t.shop));
+    const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
     return `<div class="tx-row ${t.type}" onclick="openTxModal('${t.id}')">
       <div class="tx-icon">${icon}</div>
       <div class="tx-mid">
         <div class="tx-cat">${escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
         <div class="tx-sub">${escapeHtml(acc?accountLabel(acc):'—')}</div>
         <div class="tx-meta">${formatDate(t.date)}${t.time ? ' · '+t.time : ''}${t.note ? ' · '+escapeHtml(t.note) : ''}</div>
+        ${itemLine}
       </div>
       <div class="tx-amt ${t.type}">${t.type==='debit'?'-':'+'}${inr(t.amount)}</div>
     </div>`;
@@ -734,6 +1072,172 @@ function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
 function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
 
 /* =========================================================================
+   INSIGHTS — pie chart, 3-mo vs 6-mo averages, price tracker
+========================================================================= */
+const PIE_COLORS = ['#A9862F','#2E6B4F','#A63A3A','#4A5878','#1C2A44','#B7883D','#5B8C74','#8C4A4A','#6E7FA6','#C9A24A'];
+
+function setInsightPeriod(p){
+  insightPeriod = p;
+  document.querySelectorAll('#insightChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
+  renderInsights();
+}
+
+function insightRangeStart(){
+  if (insightPeriod === 'month') return startOfMonthStr();
+  if (insightPeriod === '3m') return monthsAgoStr(3);
+  if (insightPeriod === '6m') return monthsAgoStr(6);
+  return null; // all time
+}
+
+function renderInsights(){
+  renderPieChart();
+  renderAvgTable();
+  populatePriceItemOptions();
+  renderPriceTracker();
+}
+
+function renderPieChart(){
+  const start = insightRangeStart();
+  const debits = state.transactions.filter(t => t.type==='debit' && (!start || t.date >= start));
+  const byCat = {};
+  debits.forEach(t=>{
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const name = cat ? cat.name : 'Uncategorised';
+    byCat[name] = (byCat[name]||0) + Number(t.amount);
+  });
+  const labels = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  const values = labels.map(l=>byCat[l]);
+  const colors = labels.map((_,i)=>PIE_COLORS[i % PIE_COLORS.length]);
+
+  const canvas = document.getElementById('pieChart');
+  const legend = document.getElementById('pieLegend');
+  if (!labels.length) {
+    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    legend.innerHTML = '<div class="empty-note">No spending in this period yet.</div>';
+    return;
+  }
+  if (pieChartInstance) pieChartInstance.destroy();
+  pieChartInstance = new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#FFFDF8' }] },
+    options: { plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => `${c.label}: ${inr(c.raw)}` } } }, cutout: '62%' }
+  });
+  const total = values.reduce((a,b)=>a+b,0);
+  legend.innerHTML = labels.map((l,i)=>`
+    <div class="legend-row">
+      <span class="legend-swatch" style="background:${colors[i]}"></span>
+      <span class="legend-name">${escapeHtml(l)}</span>
+      <span class="legend-amt">${inr(byCat[l])} · ${total?Math.round(byCat[l]/total*100):0}%</span>
+    </div>`).join('');
+}
+
+function renderAvgTable(){
+  const start3 = monthsAgoStr(3), start6 = monthsAgoStr(6);
+  const body = document.getElementById('avgTableBody');
+  const rows = state.categories.map(c=>{
+    const tx3 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start3);
+    const tx6 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start6);
+    const sum3 = tx3.reduce((s,t)=>s+Number(t.amount),0);
+    const sum6 = tx6.reduce((s,t)=>s+Number(t.amount),0);
+    const avg3 = sum3 / 3;
+    const avg6 = sum6 / 6;
+    return {name:c.name, avg3, avg6, hasData: tx6.length>0};
+  }).filter(r=>r.hasData);
+
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--ink-soft);padding:16px 0;">Not enough history yet — averages will appear after a few months of entries.</td></tr>';
+    return;
+  }
+  rows.sort((a,b)=>b.avg3-a.avg3);
+  body.innerHTML = rows.map(r=>{
+    let trend = '<span class="trend-flat">— flat</span>';
+    if (r.avg6 > 0) {
+      const diffPct = ((r.avg3 - r.avg6) / r.avg6) * 100;
+      if (diffPct > 8) trend = `<span class="trend-up">↑ rising ${Math.round(diffPct)}%</span>`;
+      else if (diffPct < -8) trend = `<span class="trend-down">↓ falling ${Math.round(Math.abs(diffPct))}%</span>`;
+    }
+    return `<tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td class="mono">${inr(r.avg3)}</td>
+      <td class="mono">${inr(r.avg6)}</td>
+      <td>${trend}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ---- Item & shop datalists (autocomplete for consistent naming) ---- */
+function populateItemShopDatalists(){
+  const items = [...new Set(state.transactions.map(t=>t.itemName).filter(Boolean))].sort();
+  const shops = [...new Set(state.transactions.map(t=>t.shop).filter(Boolean))].sort();
+  const itemDL = document.getElementById('itemNameOptions');
+  const shopDL = document.getElementById('shopOptions');
+  if (itemDL) itemDL.innerHTML = items.map(i=>`<option value="${escapeHtml(i)}">`).join('');
+  if (shopDL) shopDL.innerHTML = shops.map(s=>`<option value="${escapeHtml(s)}">`).join('');
+}
+
+function populatePriceItemOptions(){
+  const sel = document.getElementById('priceItemSelect');
+  if (!sel) return;
+  const cur = sel.value;
+  const items = [...new Set(state.transactions.map(t=>t.itemName).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = '<option value="">Select an item you\'ve tagged…</option>' + items.map(i=>`<option value="${escapeHtml(i)}">${escapeHtml(i)}</option>`).join('');
+  if (items.includes(cur)) sel.value = cur;
+}
+
+function renderPriceTracker(){
+  const sel = document.getElementById('priceItemSelect');
+  const body = document.getElementById('priceTrackerBody');
+  if (!sel || !sel.value) {
+    body.innerHTML = '<div class="empty-note">Tag an item name (and optionally a shop) when logging a purchase to start comparing prices here.</div>';
+    return;
+  }
+  const itemName = sel.value;
+  const norm = s => (s||'').trim().toLowerCase();
+  const purchases = state.transactions
+    .filter(t => t.type==='debit' && norm(t.itemName) === norm(itemName) && t.qty)
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  if (!purchases.length) {
+    body.innerHTML = '<div class="empty-note">No purchases with quantity logged for this item yet.</div>';
+    return;
+  }
+
+  const rows = purchases.map(t=>{
+    const rate = Number(t.amount) / Number(t.qty);
+    return `<div class="price-row">
+      <div>
+        <div class="pr-shop">${t.shop ? escapeHtml(t.shop) : '<span style="color:var(--ink-soft);font-weight:400;">Shop not noted</span>'}</div>
+        <div class="pr-meta">${formatDate(t.date)} · ${t.qty}${t.unit?' '+t.unit:''} for ${inr(t.amount)}</div>
+      </div>
+      <div class="pr-rate">${inr(rate)}${t.unit?'/'+t.unit:''}</div>
+    </div>`;
+  }).join('');
+
+  // Shop rollup — average unit price per shop, cheapest first; blank shop grouped as "Unspecified"
+  const byShop = {};
+  purchases.forEach(t=>{
+    const key = t.shop && t.shop.trim() ? t.shop.trim() : 'Unspecified';
+    const rate = Number(t.amount) / Number(t.qty);
+    if (!byShop[key]) byShop[key] = {sum:0, n:0};
+    byShop[key].sum += rate; byShop[key].n += 1;
+  });
+  const unit = purchases[0].unit || '';
+  const ranked = Object.keys(byShop).map(k=>({shop:k, avg: byShop[k].sum/byShop[k].n})).sort((a,b)=>a.avg-b.avg);
+  const rankHtml = ranked.map((r,i)=>`
+    <div class="shop-rank">
+      <div class="shop-rank-row"><span class="rank-badge">${i+1}</span>${escapeHtml(r.shop)}</div>
+      <div class="pr-rate">${inr(r.avg)}${unit?'/'+unit:''}</div>
+    </div>`).join('');
+
+  body.innerHTML = `
+    <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Average rate by shop, cheapest first</div>
+    ${rankHtml}
+    <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 4px;">All purchases</div>
+    ${rows}
+  `;
+}
+
+/* =========================================================================
    TRANSACTION MODAL LOGIC
 ========================================================================= */
 let txType = 'debit';
@@ -768,6 +1272,7 @@ function openTxModal(id){
   const accSel = document.getElementById('txAccount');
   accSel.innerHTML = state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('') || '<option value="">Add an account first</option>';
 
+  let hasItemDetails = false;
   if (id) {
     const t = state.transactions.find(x=>x.id===id);
     if (t) {
@@ -780,6 +1285,11 @@ function openTxModal(id){
       document.getElementById('txSubcategory').value = t.subcategory || '';
       document.getElementById('txRepeat').value = t.repeat || 'none';
       document.getElementById('txNote').value = t.note || '';
+      document.getElementById('txItemName').value = t.itemName || '';
+      document.getElementById('txQty').value = t.qty || '';
+      document.getElementById('txUnit').value = t.unit || '';
+      document.getElementById('txShop').value = t.shop || '';
+      hasItemDetails = !!(t.itemName || t.qty || t.shop);
     }
   } else {
     setTxType('debit');
@@ -790,9 +1300,37 @@ function openTxModal(id){
     populateCategoryOptions();
     document.getElementById('txRepeat').value = 'none';
     document.getElementById('txNote').value = '';
+    document.getElementById('txItemName').value = '';
+    document.getElementById('txQty').value = '';
+    document.getElementById('txUnit').value = '';
+    document.getElementById('txShop').value = '';
   }
+  setItemFieldsVisible(hasItemDetails);
+  updateUnitHint();
   openModal('txOverlay');
 }
+
+function toggleItemFields(){
+  const box = document.getElementById('itemFields');
+  setItemFieldsVisible(!box.classList.contains('show'));
+}
+function setItemFieldsVisible(show){
+  document.getElementById('itemFields').classList.toggle('show', show);
+  document.getElementById('itemToggleIcon').textContent = show ? '▴' : '▾';
+}
+function updateUnitHint(){
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  const qty = parseFloat(document.getElementById('txQty').value);
+  const unit = document.getElementById('txUnit').value;
+  const hint = document.getElementById('unitHint');
+  if (amount > 0 && qty > 0) {
+    hint.style.display = 'block';
+    hint.textContent = `≈ ${inr(amount/qty)}${unit ? '/'+unit : ' per unit'}`;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+document.getElementById('txAmount') && document.getElementById('txAmount').addEventListener('input', updateUnitHint);
 
 function cloneCurrentTx(){
   document.getElementById('txId').value = '';
@@ -816,6 +1354,7 @@ function saveTx(){
   if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
   if (!document.getElementById('txAccount').value) { alert('Add an account first (Accounts tab).'); return; }
   const id = document.getElementById('txId').value || uid();
+  const qtyVal = parseFloat(document.getElementById('txQty').value);
   const tx = {
     id,
     type: txType,
@@ -826,20 +1365,23 @@ function saveTx(){
     categoryId: document.getElementById('txCategory').value,
     subcategory: document.getElementById('txSubcategory').value,
     repeat: document.getElementById('txRepeat').value,
-    note: document.getElementById('txNote').value.trim()
+    note: document.getElementById('txNote').value.trim(),
+    itemName: document.getElementById('txItemName').value.trim(),
+    qty: qtyVal > 0 ? qtyVal : null,
+    unit: document.getElementById('txUnit').value,
+    shop: document.getElementById('txShop').value.trim()
   };
 
-  // Always update local state & backup immediately
+  // Always update local state & backup immediately — never lost, even offline
   const idx = state.transactions.findIndex(t=>t.id===id);
   if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
   localSave();
   renderAll();
 
-  // Also sync to cloud if signed in
-  if (currentUser) {
-    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).set(tx);
-  }
-  
+  // Queue the cloud write — flushes now if online+signed in, later otherwise
+  queueOp({kind:'tx-set', id, payload:tx});
+  flushQueue();
+
   closeModal('txOverlay');
 }
 
@@ -852,9 +1394,8 @@ function deleteCurrentTx(){
   localSave();
   renderAll();
 
-  if (currentUser) {
-    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
-  }
+  queueOp({kind:'tx-delete', id});
+  flushQueue();
   closeModal('txOverlay');
 }
 
@@ -957,6 +1498,13 @@ function exportData(){
   const a = document.createElement('a');
   a.href = url; a.download = 'khata-export.json'; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ---- PWA: install to home screen, cache shell for fast/offline loads ---- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
+  });
 }
 </script>
 </body>
