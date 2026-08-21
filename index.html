@@ -313,19 +313,68 @@ input,select,textarea{font-family:inherit;}
   <div class="auth-logo">
     <div class="stamp">₹</div>
     <h1 style="font-size:22px;">Khata</h1>
-    <div style="color:var(--ink-soft);font-size:13px;margin-top:2px;">your expenses, synced everywhere</div>
-  </div>
-  <div class="auth-card">
-    <div class="auth-tabs">
-      <button id="tabLogin" class="on" onclick="setAuthTab('login')">Sign in</button>
-      <button id="tabSignup" onclick="setAuthTab('signup')">Create account</button>
+    <div style="color:var(--ink-soft);font-size:13px;margin-top:2px;">
+      your expenses, synced everywhere
     </div>
-    <div class="field"><label>Email / User ID</label><input id="authEmail" type="text" placeholder="you@example.com or nickname"></div>
-    <div class="field"><label>Password</label><input id="authPass" type="password" placeholder="At least 6 characters"></div>
-    <button class="btn primary" style="width:100%" onclick="doAuth()">Continue</button>
-    <div class="auth-msg" id="authMsg"></div>
-    <button class="offline-link" onclick="useOffline()">Skip — use on this device only (no cloud sync)</button>
   </div>
+
+  <div class="auth-card">
+
+    <div class="auth-tabs">
+      <button id="tabLogin" class="on" onclick="setAuthTab('login')">
+        Sign in
+      </button>
+      <button id="tabSignup" onclick="setAuthTab('signup')">
+        Create account
+      </button>
+    </div>
+
+    <div class="field">
+      <label>Email / User ID</label>
+      <input
+        id="authEmail"
+        type="text"
+        placeholder="you@example.com or nickname"
+      >
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <input
+        id="authPass"
+        type="password"
+        placeholder="At least 6 characters"
+      >
+    </div>
+
+    <button
+      type="button"
+      class="offline-link"
+      onclick="forgotPassword()"
+      style="margin-bottom:10px;"
+    >
+      Forgot Password?
+    </button>
+
+    <button
+      class="btn primary"
+      style="width:100%"
+      onclick="doAuth()"
+    >
+      Continue
+    </button>
+
+    <div class="auth-msg" id="authMsg"></div>
+
+    <button
+      class="offline-link"
+      onclick="useOffline()"
+    >
+      Skip — use on this device only (no cloud sync)
+    </button>
+
+  </div>
+
   <div class="setup-note" id="setupNote"></div>
 </div>
 
@@ -825,6 +874,23 @@ function doAuth(){
     ? auth.signInWithEmailAndPassword(email, pass)
     : auth.createUserWithEmailAndPassword(email, pass);
   action.catch(err => { msg.textContent = err.message; });
+}
+function forgotPassword() {
+  const emailInput = document.getElementById('authEmail').value.trim();
+  const msg = document.getElementById('authMsg');
+
+  if (!emailInput || !emailInput.includes('@')) {
+    msg.textContent = 'Enter your email address first.';
+    return;
+  }
+
+  auth.sendPasswordResetEmail(emailInput)
+    .then(() => {
+      msg.textContent = 'Password reset email sent. Check your email.';
+    })
+    .catch(err => {
+      msg.textContent = err.message;
+    });
 }
 function useOffline(){
   currentUser = null;
