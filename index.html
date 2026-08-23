@@ -301,6 +301,16 @@ input,select,textarea{font-family:inherit;}
   font-weight:600;
 }
 
+.filter-btn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.clear-filters-btn{
+  display:none;
+  align-items:center;gap:4px;
+  background:var(--white);border:1px solid var(--paper-line);
+  color:var(--debit);border-radius:16px;padding:5px 10px 5px 8px;
+  font-size:11.5px;font-weight:600;margin:5px 0 9px;
+}
+.clear-filters-btn.show{display:inline-flex;}
+
 .more-filters{
   display:flex;
   gap:8px;
@@ -426,6 +436,82 @@ input,select,textarea{font-family:inherit;}
 .auth-msg{font-size:12.5px;color:var(--debit);margin-top:8px;min-height:16px;}
 .offline-link{display:block;text-align:center;margin-top:16px;font-size:12.5px;color:var(--ink-soft);text-decoration:underline;background:none;border:none;width:100%;}
 .setup-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:18px;line-height:1.5;}
+
+/* ---- Search box ---- */
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--white);border:1px solid var(--paper-line);border-radius:20px;
+  padding:8px 12px;margin-bottom:8px;
+}
+.search-box input{
+  border:none;background:transparent;flex:1;font-size:13px;color:var(--ink);padding:0;
+}
+.search-box input:focus{outline:none;}
+.search-box .search-ico{font-size:13px;color:var(--ink-soft);}
+.search-box .clear-search{background:none;border:none;color:var(--ink-soft);font-size:14px;padding:0 2px;display:none;}
+
+/* ---- Amount range row ---- */
+.amount-range{display:flex;gap:8px;align-items:center;flex:0 0 auto;}
+.amount-range input{
+  width:78px;border:1px solid var(--paper-line);background:var(--white);
+  border-radius:20px;padding:7px 10px;font-size:12px;color:var(--ink);
+}
+.amount-range span{font-size:11px;color:var(--ink-soft);}
+
+/* ---- Item / shop line in tx row ---- */
+.tx-itemshop{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+.tx-rate{
+  display:inline-block;margin-top:3px;font-size:10.5px;color:#5c4a15;
+  background:var(--brass-soft);border-radius:10px;padding:1px 7px;
+}
+
+/* ---- Insights tab ---- */
+.inner-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.inner-tabs button{
+  flex:1;padding:9px;border-radius:10px;border:1px solid var(--paper-line);
+  background:var(--white);font-size:12.5px;font-weight:600;color:var(--ink-soft);
+}
+.inner-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.insight-card{
+  background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px;margin-bottom:14px;
+}
+.insight-card h3{font-size:14px;margin-bottom:12px;}
+.insight-stat-row{display:flex;gap:10px;margin-bottom:14px;}
+.insight-stat{
+  flex:1;background:var(--paper);border-radius:10px;padding:10px 12px;text-align:center;
+}
+.insight-stat .val{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;}
+.insight-stat .lbl{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+.bar-row{margin-bottom:11px;}
+.bar-row-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;}
+.bar-row-top .bname{font-weight:600;}
+.bar-track{background:var(--paper);border-radius:8px;height:8px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--brass);border-radius:8px;}
+.bar-fill.month{background:var(--ink);}
+.trend-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px;}
+.trend-row .mlabel{width:52px;flex:0 0 auto;color:var(--ink-soft);}
+.trend-row .tbars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.trend-row .tbar-track{background:var(--paper);border-radius:6px;height:7px;overflow:hidden;}
+.trend-row .tbar-fill{height:100%;border-radius:6px;}
+.trend-row .tbar-fill.credit{background:var(--credit);}
+.trend-row .tbar-fill.debit{background:var(--debit);}
+.item-price-card{
+  background:var(--white);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px;
+}
+.item-price-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.item-price-head .iname{font-weight:600;font-size:14px;}
+.item-price-head .ibest{font-size:11px;color:var(--credit);font-weight:600;}
+.shop-row{
+  display:flex;justify-content:space-between;align-items:center;font-size:12px;
+  padding:6px 0;border-top:1px dashed var(--paper-line);
+}
+.shop-row:first-of-type{border-top:none;}
+.shop-row .sname{color:var(--ink);}
+.shop-row .sname .sdate{color:var(--ink-soft);font-size:10.5px;display:block;}
+.shop-row .srate{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+.shop-row.cheapest .srate{color:var(--credit);}
+.shop-row.cheapest .sname::before{content:"🏆 ";}
 </style>
 </head>
 <body>
@@ -472,7 +558,13 @@ input,select,textarea{font-family:inherit;}
 
   <!-- TRANSACTIONS TAB -->
   <div class="section active" id="tab-transactions">
-    <div class="filters">
+    <div class="search-box">
+  <span class="search-ico">🔎</span>
+  <input id="txSearchInput" type="text" placeholder="Search note, item, shop..." oninput="onSearchInput()">
+  <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✕</button>
+</div>
+
+<div class="filters">
   <button class="period-btn active" data-period="today" onclick="setPeriod('today')">Today</button>
   <button class="period-btn" data-period="week" onclick="setPeriod('week')">This week</button>
   <button class="period-btn" data-period="month" onclick="setPeriod('month')">This month</button>
@@ -484,17 +576,24 @@ input,select,textarea{font-family:inherit;}
   <button id="sortAmountBtn" onclick="toggleAmountSort()">Amount ↓</button>
 </div>
 
-<button class="more-filters-btn" onclick="toggleMoreFilters()">
-  + More filters
-</button>
+<div class="filter-btn-row">
+  <button class="more-filters-btn" onclick="toggleMoreFilters()">
+    + More filters
+  </button>
+  <button class="clear-filters-btn" id="clearFiltersBtn" onclick="clearAllFilters()">✕ Clear filters</button>
+</div>
 
-<div id="moreFilters" class="more-filters" style="display:none;">
+<div id="moreFilters" class="more-filters" style="display:none;flex-wrap:wrap;">
   <select id="fltAccount">
     <option value="">All accounts</option>
   </select>
 
-  <select id="fltCategory">
+  <select id="fltCategory" onchange="onCategoryFilterChange()">
     <option value="">All categories</option>
+  </select>
+
+  <select id="fltSubcategory">
+    <option value="">All sub-categories</option>
   </select>
 
   <select id="fltType">
@@ -502,6 +601,12 @@ input,select,textarea{font-family:inherit;}
     <option value="credit">Credit (in)</option>
     <option value="debit">Debit (out)</option>
   </select>
+
+  <div class="amount-range">
+    <input id="fltMinAmount" type="number" min="0" step="0.01" placeholder="Min ₹">
+    <span>–</span>
+    <input id="fltMaxAmount" type="number" min="0" step="0.01" placeholder="Max ₹">
+  </div>
 </div>
 
 <div id="filteredSummary" class="filtered-summary"></div>
@@ -520,6 +625,32 @@ input,select,textarea{font-family:inherit;}
   <div class="section" id="tab-categories">
     <div class="section-head"><h2>Categories</h2><button class="link-btn" onclick="openCategoryModal()">+ Add</button></div>
     <div id="categoriesList"></div>
+  </div>
+
+  <!-- INSIGHTS TAB -->
+  <div class="section" id="tab-insights">
+    <div class="section-head"><h2>Insights</h2></div>
+    <div class="inner-tabs">
+      <button id="innerTabSpending" class="on" onclick="setInsightsView('spending')">📊 Spending</button>
+      <button id="innerTabPrices" onclick="setInsightsView('prices')">🏪 Price tracker</button>
+    </div>
+
+    <div id="insightsSpendingView">
+      <div class="filters" style="margin-bottom:12px;">
+        <button class="period-btn" data-iperiod="week" onclick="setInsightsPeriod('week')">This week</button>
+        <button class="period-btn active" data-iperiod="month" onclick="setInsightsPeriod('month')">This month</button>
+        <button class="period-btn" data-iperiod="all" onclick="setInsightsPeriod('all')">All time</button>
+      </div>
+      <div id="insightsContent"></div>
+    </div>
+
+    <div id="insightsPricesView" style="display:none;">
+      <div class="search-box">
+        <span class="search-ico">🔎</span>
+        <input id="priceSearchInput" type="text" placeholder="Search item..." oninput="renderPriceTracker()">
+      </div>
+      <div id="priceTrackerContent"></div>
+    </div>
   </div>
 
   <!-- SETTINGS TAB -->
@@ -545,6 +676,7 @@ input,select,textarea{font-family:inherit;}
   <button class="navbtn active" data-tab="transactions" onclick="switchTab('transactions')"><span class="ico">📒</span>Ledger</button>
   <button class="navbtn" data-tab="accounts" onclick="switchTab('accounts')"><span class="ico">💳</span>Accounts</button>
   <button class="navbtn" data-tab="categories" onclick="switchTab('categories')"><span class="ico">🏷️</span>Categories</button>
+  <button class="navbtn" data-tab="insights" onclick="switchTab('insights')"><span class="ico">📊</span>Insights</button>
   <button class="navbtn" data-tab="settings" onclick="switchTab('settings')"><span class="ico">⚙️</span>Settings</button>
 </div>
 
@@ -561,7 +693,7 @@ input,select,textarea{font-family:inherit;}
         <button type="button" id="segCredit" class="credit" onclick="setTxType('credit')">Credit (received)</button>
       </div>
     </div>
-    <div class="field"><label>Amount (₹)</label><input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
+    <div class="field"><label>Amount (₹)</label><input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" oninput="updateRatePreview()"></div>
     <div style="display:flex;gap:10px;">
       <div class="field" style="flex:1;"><label>Date</label><input id="txDate" type="date"></div>
       <div class="field" style="flex:1;"><label>Time</label><input id="txTime" type="time"></div>
@@ -587,7 +719,32 @@ input,select,textarea{font-family:inherit;}
         <option value="monthly">Monthly</option>
       </select>
     </div>
-    <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Item (optional)</label><input id="txItem" placeholder="e.g. Milk, Rice, Petrol..." oninput="updateRatePreview()"></div>
+      <div class="field" style="flex:1;"><label>Shop (optional)</label><input id="txShop" placeholder="e.g. D-Mart, local kirana..."></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Quantity (optional)</label><input id="txQuantity" type="number" min="0" step="0.01" placeholder="e.g. 2" oninput="updateRatePreview()"></div>
+      <div class="field" style="flex:1;">
+        <label>Unit</label>
+        <select id="txUnit" onchange="updateRatePreview()">
+          <option value="">—</option>
+          <option value="kg">kg</option>
+          <option value="g">g</option>
+          <option value="l">l</option>
+          <option value="ml">ml</option>
+          <option value="pc">pc</option>
+          <option value="dozen">dozen</option>
+          <option value="pack">pack</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="ratePreviewField" style="display:none;">
+      <label>Rate (auto-calculated)</label>
+      <div class="tx-rate" id="ratePreview" style="display:inline-block;"></div>
+    </div>
+    <div class="field"><label>Note</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
       <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
@@ -688,6 +845,19 @@ const DEFAULT_CATEGORIES = [
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
 
+/* ---- Unit rate helpers ---- */
+function computeRate(t){
+  const qty = Number(t.quantity);
+  const amt = Number(t.amount);
+  if (qty && qty>0 && amt) return amt/qty;
+  return null;
+}
+function formatRate(t){
+  const r = computeRate(t);
+  if (r==null) return '';
+  return inr(r) + '/' + (t.unit || 'unit');
+}
+
 /* =========================================================================
    PERSISTENCE — Firestore & LocalStorage Backup
 ========================================================================= */
@@ -741,6 +911,10 @@ function checkRecurringExpenses(){
               accountId: t.accountId,
               categoryId: t.categoryId,
               subcategory: t.subcategory,
+              item: t.item || '',
+              shop: t.shop || '',
+              quantity: t.quantity || '',
+              unit: t.unit || '',
               repeat: 'none',
               note: (t.note || '') + ' (Recurring)'
             });
@@ -945,6 +1119,10 @@ function switchTab(tab){
   document.getElementById('tab-'+tab).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('fabAdd').style.display = (tab==='transactions') ? 'flex' : 'none';
+  if (tab==='insights') {
+    renderInsights();
+    renderPriceTracker();
+  }
 }
 
 /* =========================================================================
@@ -956,6 +1134,11 @@ function renderAll(){
   renderTransactions();
   renderAccounts();
   renderCategories();
+  const insightsTab = document.getElementById('tab-insights');
+  if (insightsTab && insightsTab.classList.contains('active')) {
+    renderInsights();
+    renderPriceTracker();
+  }
 }
 
 function renderBalance(){
@@ -976,6 +1159,69 @@ function renderFilters(){
   accSel.innerHTML = '<option value="">All accounts</option>' + state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
   catSel.innerHTML = '<option value="">All categories</option>' + state.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   accSel.value = curAcc; catSel.value = curCat;
+  populateSubcategoryFilter();
+}
+
+function populateSubcategoryFilter(){
+  const catF = document.getElementById('fltCategory').value;
+  const subSel = document.getElementById('fltSubcategory');
+  const curSub = subSel.value;
+  let subs = [];
+  if (catF) {
+    const cat = state.categories.find(c=>c.id===catF);
+    subs = (cat && cat.subs) || [];
+  } else {
+    const seen = new Set();
+    state.categories.forEach(c=>(c.subs||[]).forEach(s=>seen.add(s)));
+    subs = Array.from(seen);
+  }
+  subSel.innerHTML = '<option value="">All sub-categories</option>' + subs.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if (subs.includes(curSub)) subSel.value = curSub;
+}
+
+function onCategoryFilterChange(){
+  populateSubcategoryFilter();
+  renderTransactions();
+}
+
+function onSearchInput(){
+  const val = document.getElementById('txSearchInput').value;
+  document.getElementById('clearSearchBtn').style.display = val ? 'inline-block' : 'none';
+  renderTransactions();
+}
+function clearSearch(){
+  document.getElementById('txSearchInput').value = '';
+  document.getElementById('clearSearchBtn').style.display = 'none';
+  renderTransactions();
+}
+
+function hasActiveFilters(){
+  return !!(
+    document.getElementById('txSearchInput').value.trim() ||
+    document.getElementById('fltAccount').value ||
+    document.getElementById('fltCategory').value ||
+    document.getElementById('fltSubcategory').value ||
+    document.getElementById('fltType').value ||
+    document.getElementById('fltMinAmount').value ||
+    document.getElementById('fltMaxAmount').value
+  );
+}
+
+function updateClearFiltersVisibility(){
+  document.getElementById('clearFiltersBtn').classList.toggle('show', hasActiveFilters());
+}
+
+function clearAllFilters(){
+  document.getElementById('txSearchInput').value = '';
+  document.getElementById('clearSearchBtn').style.display = 'none';
+  document.getElementById('fltAccount').value = '';
+  document.getElementById('fltCategory').value = '';
+  document.getElementById('fltType').value = '';
+  document.getElementById('fltMinAmount').value = '';
+  document.getElementById('fltMaxAmount').value = '';
+  populateSubcategoryFilter();
+  document.getElementById('fltSubcategory').value = '';
+  renderTransactions();
 }
 
 function accountLabel(a){
@@ -986,7 +1232,11 @@ function accountLabel(a){
 function renderTransactions(){
   const accF = document.getElementById('fltAccount').value;
   const catF = document.getElementById('fltCategory').value;
+  const subF = document.getElementById('fltSubcategory').value;
   const typeF = document.getElementById('fltType').value;
+  const minF = parseFloat(document.getElementById('fltMinAmount').value);
+  const maxF = parseFloat(document.getElementById('fltMaxAmount').value);
+  const searchF = document.getElementById('txSearchInput').value.trim().toLowerCase();
 
   let list = state.transactions
   .filter(transactionMatchesPeriod)
@@ -1007,9 +1257,31 @@ if(amountSortDesc){
     list = list.filter(t => t.categoryId === catF);
   }
 
+  if (subF) {
+    list = list.filter(t => t.subcategory === subF);
+  }
+
   if (typeF) {
     list = list.filter(t => t.type === typeF);
   }
+
+  if (!isNaN(minF)) {
+    list = list.filter(t => Number(t.amount||0) >= minF);
+  }
+
+  if (!isNaN(maxF)) {
+    list = list.filter(t => Number(t.amount||0) <= maxF);
+  }
+
+  if (searchF) {
+    list = list.filter(t =>
+      (t.note||'').toLowerCase().includes(searchF) ||
+      (t.item||'').toLowerCase().includes(searchF) ||
+      (t.shop||'').toLowerCase().includes(searchF)
+    );
+  }
+
+  updateClearFiltersVisibility();
 
   /* ==========================================
      CALCULATE FILTERED TOTALS
@@ -1102,6 +1374,13 @@ if(amountSortDesc){
             )}
           </div>
 
+          ${(t.item || t.shop) ? `
+          <div class="tx-itemshop">
+            ${t.item ? '🛒 ' + escapeHtml(t.item) : ''}
+            ${(t.item && t.shop) ? ' · ' : ''}
+            ${t.shop ? '🏪 ' + escapeHtml(t.shop) : ''}
+          </div>` : ''}
+
           <div class="tx-meta">
             ${formatDate(t.date)}
             ${t.time ? ' · ' + t.time : ''}
@@ -1109,6 +1388,8 @@ if(amountSortDesc){
               ? ' · ' + escapeHtml(t.note)
               : ''}
           </div>
+
+          ${formatRate(t) ? `<div class="tx-rate">${formatRate(t)}</div>` : ''}
 
         </div>
 
@@ -1157,6 +1438,211 @@ function renderCategories(){
         <button onclick="addSubcat('${c.id}')">Add</button>
       </div>
     </div>`).join('');
+}
+
+/* =========================================================================
+   INSIGHTS / ANALYSIS
+========================================================================= */
+let insightsView = 'spending';
+let insightsPeriod = 'month';
+
+function setInsightsView(view){
+  insightsView = view;
+  document.getElementById('innerTabSpending').classList.toggle('on', view==='spending');
+  document.getElementById('innerTabPrices').classList.toggle('on', view==='prices');
+  document.getElementById('insightsSpendingView').style.display = view==='spending' ? 'block' : 'none';
+  document.getElementById('insightsPricesView').style.display = view==='prices' ? 'block' : 'none';
+  if (view==='spending') renderInsights(); else renderPriceTracker();
+}
+
+function setInsightsPeriod(period){
+  insightsPeriod = period;
+  document.querySelectorAll('#insightsSpendingView .period-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.iperiod === period);
+  });
+  renderInsights();
+}
+
+function txMatchesInsightsPeriod(t){
+  if (insightsPeriod === 'all') return true;
+  if (!t.date) return false;
+  const txDate = new Date(t.date + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (insightsPeriod === 'week') {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    return txDate >= startOfWeek && txDate <= today;
+  }
+  if (insightsPeriod === 'month') {
+    return txDate.getMonth() === today.getMonth() && txDate.getFullYear() === today.getFullYear();
+  }
+  return true;
+}
+
+function renderInsights(){
+  const wrap = document.getElementById('insightsContent');
+  if (!wrap) return;
+  const list = state.transactions.filter(txMatchesInsightsPeriod);
+
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty-note">No transactions in this period yet.</div>';
+    return;
+  }
+
+  let credit=0, debit=0;
+  list.forEach(t=>{ if (t.type==='credit') credit+=Number(t.amount)||0; else debit+=Number(t.amount)||0; });
+
+  /* Category breakdown (debit only) */
+  const catTotals = {};
+  list.filter(t=>t.type==='debit').forEach(t=>{
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const name = cat ? cat.name : 'Uncategorised';
+    catTotals[name] = (catTotals[name]||0) + (Number(t.amount)||0);
+  });
+  const catEntries = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catEntries.length ? catEntries[0][1] : 0;
+
+  /* Top items (debit only, with item name) */
+  const itemTotals = {};
+  list.filter(t=>t.type==='debit' && t.item).forEach(t=>{
+    itemTotals[t.item] = (itemTotals[t.item]||0) + (Number(t.amount)||0);
+  });
+  const itemEntries = Object.entries(itemTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxItem = itemEntries.length ? itemEntries[0][1] : 0;
+
+  /* Monthly trend — last 6 months across ALL transactions (not just filtered period) */
+  const monthBuckets = [];
+  const now = new Date();
+  for (let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    monthBuckets.push({key: d.getFullYear()+'-'+d.getMonth(), label: d.toLocaleDateString('en-IN',{month:'short'}), credit:0, debit:0});
+  }
+  state.transactions.forEach(t=>{
+    if (!t.date) return;
+    const d = new Date(t.date+'T00:00:00');
+    const key = d.getFullYear()+'-'+d.getMonth();
+    const bucket = monthBuckets.find(b=>b.key===key);
+    if (bucket) {
+      if (t.type==='credit') bucket.credit += Number(t.amount)||0;
+      else bucket.debit += Number(t.amount)||0;
+    }
+  });
+  const maxMonthVal = Math.max(1, ...monthBuckets.map(b=>Math.max(b.credit,b.debit)));
+
+  const days = insightsPeriod==='week' ? 7 : insightsPeriod==='month' ? new Date().getDate() : Math.max(1, Math.round((Date.now() - new Date(Math.min(...list.map(t=>new Date(t.date+'T00:00:00').getTime()))))/86400000)+1);
+  const avgPerDay = debit / Math.max(1, days);
+
+  wrap.innerHTML = `
+    <div class="insight-stat-row">
+      <div class="insight-stat"><div class="val" style="color:var(--credit);">${inr(credit)}</div><div class="lbl">In</div></div>
+      <div class="insight-stat"><div class="val" style="color:var(--debit);">${inr(debit)}</div><div class="lbl">Out</div></div>
+      <div class="insight-stat"><div class="val">${inr(avgPerDay)}</div><div class="lbl">Avg/day</div></div>
+    </div>
+
+    <div class="insight-card">
+      <h3>Spend by category</h3>
+      ${catEntries.length ? catEntries.map(([name,amt])=>`
+        <div class="bar-row">
+          <div class="bar-row-top"><span class="bname">${escapeHtml(name)}</span><span class="mono">${inr(amt)}</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${maxCat?Math.round(amt/maxCat*100):0}%;"></div></div>
+        </div>
+      `).join('') : '<div class="empty-note">No spending yet.</div>'}
+    </div>
+
+    <div class="insight-card">
+      <h3>Top items</h3>
+      ${itemEntries.length ? itemEntries.map(([name,amt])=>`
+        <div class="bar-row">
+          <div class="bar-row-top"><span class="bname">🛒 ${escapeHtml(name)}</span><span class="mono">${inr(amt)}</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${maxItem?Math.round(amt/maxItem*100):0}%;"></div></div>
+        </div>
+      `).join('') : '<div class="empty-note">Add item names to transactions to see this.</div>'}
+    </div>
+
+    <div class="insight-card">
+      <h3>Last 6 months</h3>
+      ${monthBuckets.map(b=>`
+        <div class="trend-row">
+          <span class="mlabel">${b.label}</span>
+          <div class="tbars">
+            <div class="tbar-track"><div class="tbar-fill credit" style="width:${Math.round(b.credit/maxMonthVal*100)}%;"></div></div>
+            <div class="tbar-track"><div class="tbar-fill debit" style="width:${Math.round(b.debit/maxMonthVal*100)}%;"></div></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* =========================================================================
+   PRICE TRACKER — same item across shops
+========================================================================= */
+function renderPriceTracker(){
+  const wrap = document.getElementById('priceTrackerContent');
+  if (!wrap) return;
+  const searchEl = document.getElementById('priceSearchInput');
+  const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+  const withItems = state.transactions.filter(t=>t.type==='debit' && t.item && t.item.trim());
+  const byItem = {};
+  withItems.forEach(t=>{
+    const key = t.item.trim().toLowerCase();
+    if (!byItem[key]) byItem[key] = {label: t.item.trim(), entries: []};
+    byItem[key].entries.push(t);
+  });
+
+  let itemKeys = Object.keys(byItem);
+  if (search) itemKeys = itemKeys.filter(k=>k.includes(search));
+  itemKeys.sort((a,b)=>byItem[a].label.localeCompare(byItem[b].label));
+
+  if (!itemKeys.length) {
+    wrap.innerHTML = '<div class="empty-note">No priced items yet. Add an Item name (and optionally Shop + Quantity/Unit) when logging an expense to start tracking prices here.</div>';
+    return;
+  }
+
+  wrap.innerHTML = itemKeys.map(key=>{
+    const item = byItem[key];
+    // group by shop, using the most recent entry's rate per shop, and an average
+    const byShop = {};
+    item.entries.forEach(t=>{
+      const shopName = (t.shop && t.shop.trim()) || 'Unknown shop';
+      if (!byShop[shopName]) byShop[shopName] = [];
+      byShop[shopName].push(t);
+    });
+
+    const shopRows = Object.entries(byShop).map(([shopName, txs])=>{
+      txs.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+      const latest = txs[0];
+      const rate = computeRate(latest);
+      const avgRate = (()=>{
+        const rates = txs.map(computeRate).filter(r=>r!=null);
+        if (!rates.length) return null;
+        return rates.reduce((s,r)=>s+r,0)/rates.length;
+      })();
+      const displayRate = rate!=null ? rate : (Number(latest.amount)||0);
+      const unitLabel = rate!=null ? (latest.unit||'unit') : '';
+      return {shopName, latest, rate: displayRate, unitLabel, avgRate, count: txs.length};
+    });
+
+    const pricedRows = shopRows.filter(r=>r.rate!=null);
+    const cheapest = pricedRows.length ? pricedRows.reduce((min,r)=> r.rate<min.rate ? r : min, pricedRows[0]) : null;
+    shopRows.sort((a,b)=>(a.rate||0)-(b.rate||0));
+
+    return `
+      <div class="item-price-card">
+        <div class="item-price-head">
+          <span class="iname">🛒 ${escapeHtml(item.label)}</span>
+          ${cheapest ? `<span class="ibest">Best: ${escapeHtml(cheapest.shopName)}</span>` : ''}
+        </div>
+        ${shopRows.map(r=>`
+          <div class="shop-row ${cheapest && r.shopName===cheapest.shopName ? 'cheapest' : ''}">
+            <span class="sname">${escapeHtml(r.shopName)}<span class="sdate">${formatDate(r.latest.date)}${r.count>1 ? ' · '+r.count+' purchases' : ''}</span></span>
+            <span class="srate">${r.unitLabel ? inr(r.rate)+'/'+escapeHtml(r.unitLabel) : inr(r.rate)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
 }
 
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -1209,7 +1695,12 @@ function openTxModal(id){
       populateCategoryOptions(t.categoryId);
       document.getElementById('txSubcategory').value = t.subcategory || '';
       document.getElementById('txRepeat').value = t.repeat || 'none';
+      document.getElementById('txItem').value = t.item || '';
+      document.getElementById('txShop').value = t.shop || '';
+      document.getElementById('txQuantity').value = t.quantity || '';
+      document.getElementById('txUnit').value = t.unit || '';
       document.getElementById('txNote').value = t.note || '';
+      updateRatePreview();
     }
   } else {
     setTxType('debit');
@@ -1219,7 +1710,12 @@ function openTxModal(id){
     document.getElementById('txTime').value = now.toTimeString().slice(0,5);
     populateCategoryOptions();
     document.getElementById('txRepeat').value = 'none';
+    document.getElementById('txItem').value = '';
+    document.getElementById('txShop').value = '';
+    document.getElementById('txQuantity').value = '';
+    document.getElementById('txUnit').value = '';
     document.getElementById('txNote').value = '';
+    updateRatePreview();
   }
   openModal('txOverlay');
 }
@@ -1232,6 +1728,20 @@ function cloneCurrentTx(){
   document.getElementById('txAmount').value = '';
   document.getElementById('txNote').value = '';
   document.getElementById('txAmount').focus();
+}
+
+function updateRatePreview(){
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  const quantity = parseFloat(document.getElementById('txQuantity').value);
+  const unit = document.getElementById('txUnit').value;
+  const field = document.getElementById('ratePreviewField');
+  const out = document.getElementById('ratePreview');
+  if (amount && quantity && quantity>0) {
+    out.textContent = inr(amount/quantity) + '/' + (unit || 'unit');
+    field.style.display = 'block';
+  } else {
+    field.style.display = 'none';
+  }
 }
 
 function populateSubcatOptions(){
@@ -1256,6 +1766,10 @@ function saveTx(){
     categoryId: document.getElementById('txCategory').value,
     subcategory: document.getElementById('txSubcategory').value,
     repeat: document.getElementById('txRepeat').value,
+    item: document.getElementById('txItem').value.trim(),
+    shop: document.getElementById('txShop').value.trim(),
+    quantity: document.getElementById('txQuantity').value ? parseFloat(document.getElementById('txQuantity').value) : '',
+    unit: document.getElementById('txUnit').value,
     note: document.getElementById('txNote').value.trim()
   };
 
@@ -1397,8 +1911,17 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('fltCategory')
     .addEventListener('change', renderTransactions);
 
+  document.getElementById('fltSubcategory')
+    .addEventListener('change', renderTransactions);
+
   document.getElementById('fltType')
     .addEventListener('change', renderTransactions);
+
+  document.getElementById('fltMinAmount')
+    .addEventListener('input', renderTransactions);
+
+  document.getElementById('fltMaxAmount')
+    .addEventListener('input', renderTransactions);
 
 });
 
