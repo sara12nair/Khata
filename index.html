@@ -184,6 +184,8 @@ input,select,textarea{font-family:inherit;}
 
 /* ---- Filtered total summary ---- */
 .filtered-summary{
+  display:block;
+  width:100%;
   background:var(--white);
   border:1px solid var(--paper-line);
   border-radius:12px;
@@ -195,39 +197,58 @@ input,select,textarea{font-family:inherit;}
 }
 
 .filtered-summary .summary-title{
+  display:block;
   font-size:11px;
   text-transform:uppercase;
   letter-spacing:.7px;
-  margin-bottom:6px;
+  margin-bottom:7px;
   color:var(--ink-soft);
 }
 
 .filtered-summary .summary-values{
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:8px;
+  width:100%;
   flex-wrap:wrap;
+}
+
+.filtered-summary .sum-credit,
+.filtered-summary .sum-debit,
+.filtered-summary .sum-balance{
+  white-space:nowrap;
+  font-weight:700;
 }
 
 .filtered-summary .sum-credit{
   color:var(--credit);
-  font-weight:700;
 }
 
 .filtered-summary .sum-debit{
   color:var(--debit);
-  font-weight:700;
 }
 
 .filtered-summary .sum-balance{
   color:var(--ink);
-  font-weight:700;
 }
 
 .filtered-summary .sum-count{
-  margin-left:auto;
   color:var(--ink-soft);
   font-size:11px;
+  white-space:nowrap;
+}
+
+/* ---- Small Android screens ---- */
+@media (max-width:380px){
+  .filtered-summary .summary-values{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px 8px;
+  }
+
+  .filtered-summary .sum-count{
+    grid-column:1 / -1;
+  }
 }
 /* ---- Period filters ---- */
 .period-btn{
