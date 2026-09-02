@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#F6F1E4">
-<link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Khata — Expense Tracker v2</title>
+<title>Khata — Expense Tracker</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F6F1E4">
+<link rel="apple-touch-icon" href="data:,">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Khata">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -15,6 +19,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js for Insights tab -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
 <style>
 :root{
@@ -104,228 +111,6 @@ input,select,textarea{font-family:inherit;}
 .filters select{
   flex:0 0 auto;border:1px solid var(--paper-line);background:var(--white);
   border-radius:20px;padding:7px 10px;font-size:12px;color:var(--ink);
-}
-/* ---- Filter summary ---- */
-.filtered-summary{
-  background:var(--white);
-  border:1px solid var(--paper-line);
-  border-radius:12px;
-  padding:10px 12px;
-  margin:8px 0 10px;
-  box-shadow:var(--shadow);
-  font-size:12px;
-}
-
-.filtered-summary .summary-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-}
-
-.filtered-summary .periods{
-  display:flex;
-  gap:5px;
-  flex-wrap:wrap;
-}
-
-.filtered-summary .period-btn{
-  border:1px solid var(--paper-line);
-  background:var(--paper);
-  color:var(--ink-soft);
-  border-radius:16px;
-  padding:5px 9px;
-  font-size:11px;
-  cursor:pointer;
-}
-
-.filtered-summary .period-btn.active{
-  background:var(--ink);
-  color:white;
-  border-color:var(--ink);
-}
-
-.filtered-summary .filter-total{
-  margin-top:9px;
-  padding-top:8px;
-  border-top:1px dashed var(--paper-line);
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.filtered-summary .filter-total strong{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:14px;
-}
-
-.filtered-summary .in{
-  color:var(--credit);
-}
-
-.filtered-summary .out{
-  color:var(--debit);
-}
-
-.more-filter-btn{
-  margin-top:8px;
-  width:100%;
-  border:1px solid var(--paper-line);
-  background:var(--white);
-  color:var(--brass);
-  border-radius:10px;
-  padding:7px;
-  font-size:12px;
-  font-weight:600;
-  cursor:pointer;
-}
-
-.more-filter-panel{
-  display:block;
-  margin-top:8px;
-}
-
-/* ---- Filtered total summary ---- */
-.filtered-summary{
-  display:block;
-  width:100%;
-  background:var(--white);
-  border:1px solid var(--paper-line);
-  border-radius:12px;
-  padding:10px 12px;
-  margin:4px 0 12px;
-  box-shadow:var(--shadow);
-  font-size:12px;
-  color:var(--ink-soft);
-}
-
-.filtered-summary .summary-title{
-  display:block;
-  font-size:11px;
-  text-transform:uppercase;
-  letter-spacing:.7px;
-  margin-bottom:7px;
-  color:var(--ink-soft);
-}
-
-.filtered-summary .summary-values{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  width:100%;
-  flex-wrap:wrap;
-}
-
-.filtered-summary .sum-credit,
-.filtered-summary .sum-debit,
-.filtered-summary .sum-balance{
-  white-space:nowrap;
-  font-weight:700;
-}
-
-.filtered-summary .sum-credit{
-  color:var(--credit);
-}
-
-.filtered-summary .sum-debit{
-  color:var(--debit);
-}
-
-.filtered-summary .sum-balance{
-  color:var(--ink);
-}
-
-.filtered-summary .sum-count{
-  color:var(--ink-soft);
-  font-size:11px;
-  white-space:nowrap;
-}
-
-/* ---- Small Android screens ---- */
-@media (max-width:380px){
-  .filtered-summary .summary-values{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:6px 8px;
-  }
-
-  .filtered-summary .sum-count{
-    grid-column:1 / -1;
-  }
-}
-/* ---- Period filters ---- */
-.period-btn{
-  flex:0 0 auto;
-  border:1px solid var(--paper-line);
-  background:var(--white);
-  color:var(--ink-soft);
-  border-radius:20px;
-  padding:7px 12px;
-  font-size:12px;
-  font-weight:600;
-}
-
-.period-btn.active{
-  background:var(--ink);
-  color:#fff;
-  border-color:var(--ink);
-}
-
-/* ---- Transaction sorting row ---- */
-.transaction-tools{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:2px 4px 7px;
-  color:var(--ink-soft);
-  font-size:11px;
-}
-
-.transaction-tools button{
-  background:none;
-  border:none;
-  color:var(--ink);
-  font-family:'IBM Plex Sans',sans-serif;
-  font-size:11px;
-  font-weight:600;
-  padding:3px 5px;
-}
-
-/* ---- More filters ---- */
-.more-filters-btn{
-  background:none;
-  border:none;
-  padding:5px 2px 9px;
-  color:var(--brass);
-  font-size:12px;
-  font-weight:600;
-}
-
-.filter-btn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.clear-filters-btn{
-  display:none;
-  align-items:center;gap:4px;
-  background:var(--white);border:1px solid var(--paper-line);
-  color:var(--debit);border-radius:16px;padding:5px 10px 5px 8px;
-  font-size:11.5px;font-weight:600;margin:5px 0 9px;
-}
-.clear-filters-btn.show{display:inline-flex;}
-
-.more-filters{
-  display:flex;
-  gap:8px;
-  overflow-x:auto;
-  padding-bottom:8px;
-}
-
-.more-filters select{
-  flex:0 0 auto;
-  border:1px solid var(--paper-line);
-  background:var(--white);
-  border-radius:20px;
-  padding:7px 10px;
-  font-size:12px;
-  color:var(--ink);
 }
 
 /* ---- Transaction row ---- */
@@ -437,81 +222,136 @@ input,select,textarea{font-family:inherit;}
 .offline-link{display:block;text-align:center;margin-top:16px;font-size:12.5px;color:var(--ink-soft);text-decoration:underline;background:none;border:none;width:100%;}
 .setup-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:18px;line-height:1.5;}
 
-/* ---- Search box ---- */
-.search-box{
-  display:flex;align-items:center;gap:8px;
-  background:var(--white);border:1px solid var(--paper-line);border-radius:20px;
-  padding:8px 12px;margin-bottom:8px;
+/* ---- Optional device biometric lock ---- */
+.app-lock{
+  position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+  padding:24px;background:var(--paper);
 }
-.search-box input{
-  border:none;background:transparent;flex:1;font-size:13px;color:var(--ink);padding:0;
+.app-lock.show{display:flex;}
+.lock-card{
+  width:100%;max-width:380px;background:var(--white);border-radius:20px;padding:28px 22px;
+  text-align:center;box-shadow:var(--shadow);
 }
-.search-box input:focus{outline:none;}
-.search-box .search-ico{font-size:13px;color:var(--ink-soft);}
-.search-box .clear-search{background:none;border:none;color:var(--ink-soft);font-size:14px;padding:0 2px;display:none;}
+.lock-icon{font-size:46px;margin-bottom:10px;}
+.lock-card h2{font-size:20px;margin-bottom:6px;}
+.lock-card p{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:18px;}
+.lock-msg{min-height:18px;margin-top:10px;color:var(--debit);font-size:12px;}
 
-/* ---- Amount range row ---- */
-.amount-range{display:flex;gap:8px;align-items:center;flex:0 0 auto;}
+/* ---- Period chips (Today / Week / Month / All) ---- */
+.period-chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;}
+.period-chips button{
+  flex:0 0 auto;border:1px solid var(--paper-line);background:var(--white);color:var(--ink-soft);
+  border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;
+}
+.period-chips button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+/* ---- Sort / search row ---- */
+.toolrow{display:flex;gap:8px;margin-bottom:8px;}
+.search-wrap{position:relative;flex:1;min-width:0;}
+.toolrow input[type="text"]{
+  width:100%;border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 34px 8px 12px;font-size:12.5px;color:var(--ink);
+}
+.search-clear-btn{
+  display:none;position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  width:24px;height:24px;border:0;border-radius:50%;background:var(--paper-line);
+  color:var(--ink-soft);font-size:16px;line-height:1;align-items:center;justify-content:center;
+}
+.search-clear-btn.show{display:flex;}
+.toolrow input[type="text"].searching-all{border-color:var(--brass);box-shadow:0 0 0 2px var(--brass-soft);}
+.search-scope-hint{display:none;color:var(--brass);font-size:11.5px;font-weight:600;margin:-3px 0 8px 12px;}
+.search-scope-hint.show{display:block;}
+.visible-summary{
+  background:var(--white);border:1px solid var(--paper-line);border-radius:10px;
+  padding:8px 10px;margin:0 0 9px;font-size:11.5px;font-weight:600;
+  color:var(--ink-soft);white-space:nowrap;overflow-x:auto;scrollbar-width:none;
+}
+.visible-summary::-webkit-scrollbar{display:none;}
+.visible-summary .credit{color:var(--credit);}
+.visible-summary .debit{color:var(--debit);}
+.visible-summary .mono{color:inherit;}
+.toolrow select{
+  border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 10px;font-size:12px;color:var(--ink);
+}
+.sort-dir-btn{
+  border:1px solid var(--paper-line);background:var(--white);border-radius:20px;
+  padding:8px 10px;font-size:13px;color:var(--ink);flex:0 0 auto;
+}
+.amount-range{display:flex;gap:8px;margin-bottom:8px;}
 .amount-range input{
-  width:78px;border:1px solid var(--paper-line);background:var(--white);
-  border-radius:20px;padding:7px 10px;font-size:12px;color:var(--ink);
+  flex:1;border:1px solid var(--paper-line);background:var(--white);border-radius:10px;
+  padding:7px 10px;font-size:12.5px;color:var(--ink);
 }
-.amount-range span{font-size:11px;color:var(--ink-soft);}
+.date-range{display:flex;gap:8px;margin-bottom:8px;}
+.date-range-head{display:flex;align-items:center;justify-content:space-between;margin:1px 2px 5px;}
+.date-range-head span{font-size:11.5px;color:var(--ink-soft);font-weight:700;}
+.date-range-head button{border:0;background:none;color:var(--brass);font-size:11.5px;font-weight:600;padding:3px 0;}
+.date-range label{flex:1;min-width:0;font-size:11px;color:var(--ink-soft);font-weight:600;}
+.date-range input{
+  display:block;width:100%;margin-top:4px;border:1px solid var(--paper-line);background:var(--white);
+  border-radius:10px;padding:7px 8px;font-size:12px;color:var(--ink);min-width:0;
+}
+.filters-toggle{background:none;border:none;color:var(--brass);font-weight:600;font-size:12px;padding:2px 0 8px;}
 
-/* ---- Item / shop line in tx row ---- */
-.tx-itemshop{font-size:12px;color:var(--ink-soft);margin-top:1px;}
-.tx-rate{
-  display:inline-block;margin-top:3px;font-size:10.5px;color:#5c4a15;
-  background:var(--brass-soft);border-radius:10px;padding:1px 7px;
+/* ---- Sync pill states, incl. queued ---- */
+.sync-pill.queued .sync-dot{background:var(--brass);}
+.sync-pill.queued{color:var(--brass);}
+
+/* ---- Today stat on balance card ---- */
+.balance-today{
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--paper-line);
+  font-size:12.5px;color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;
 }
+.balance-today b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-size:14px;}
 
 /* ---- Insights tab ---- */
-.inner-tabs{display:flex;gap:8px;margin-bottom:14px;}
-.inner-tabs button{
-  flex:1;padding:9px;border-radius:10px;border:1px solid var(--paper-line);
-  background:var(--white);font-size:12.5px;font-weight:600;color:var(--ink-soft);
+.insight-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;}
+.insight-card h3{font-size:14px;margin-bottom:10px;}
+.chart-wrap{position:relative;max-width:240px;margin:0 auto;}
+.legend-list{margin-top:12px;display:flex;flex-direction:column;gap:7px;}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+.legend-swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
+.legend-name{flex:1;color:var(--ink);}
+.legend-amt{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12px;}
+
+.avg-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.avg-table th{text-align:left;color:var(--ink-soft);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;padding:4px 6px;border-bottom:1px solid var(--paper-line);}
+.avg-table td{padding:8px 6px;border-bottom:1px solid var(--paper-line);}
+.avg-table td.mono{font-family:'IBM Plex Mono',monospace;}
+.trend-up{color:var(--debit);font-weight:700;}
+.trend-down{color:var(--credit);font-weight:700;}
+.trend-flat{color:var(--ink-soft);}
+
+/* ---- Price tracker ---- */
+.price-item-picker{margin-bottom:12px;}
+.price-item-picker select{width:100%;border:1px solid var(--paper-line);border-radius:10px;padding:9px 10px;font-size:13px;background:var(--white);color:var(--ink);}
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--paper-line);font-size:12.5px;}
+.price-row:last-child{border-bottom:none;}
+.price-row .pr-shop{font-weight:600;}
+.price-row .pr-meta{color:var(--ink-soft);font-size:11.5px;}
+.price-row .pr-rate{font-family:'IBM Plex Mono',monospace;font-weight:700;text-align:right;}
+.shop-rank{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12.5px;}
+.shop-rank .rank-badge{
+  width:20px;height:20px;border-radius:50%;background:var(--brass-soft);color:#5c4a15;
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-right:8px;
 }
-.inner-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
-.insight-card{
-  background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);
-  padding:16px;margin-bottom:14px;
+.shop-rank-row{display:flex;align-items:center;flex:1;}
+
+/* ---- Item & shop optional section in tx modal ---- */
+.item-toggle{
+  background:var(--white);border:1px dashed var(--brass);color:var(--brass);
+  border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;width:100%;text-align:left;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
 }
-.insight-card h3{font-size:14px;margin-bottom:12px;}
-.insight-stat-row{display:flex;gap:10px;margin-bottom:14px;}
-.insight-stat{
-  flex:1;background:var(--paper);border-radius:10px;padding:10px 12px;text-align:center;
+.item-fields{display:none;background:var(--paper);border-radius:10px;padding:2px 0 2px;margin-bottom:4px;}
+.item-fields.show{display:block;}
+.unit-hint{font-size:11.5px;color:var(--brass);margin-top:-6px;margin-bottom:12px;font-family:'IBM Plex Mono',monospace;}
+.item-category-hint{
+  display:none;margin:-5px 0 11px;padding:7px 9px;border-radius:8px;
+  background:var(--brass-soft);color:#5c4a15;font-size:11.5px;line-height:1.4;
 }
-.insight-stat .val{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;}
-.insight-stat .lbl{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-.bar-row{margin-bottom:11px;}
-.bar-row-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;}
-.bar-row-top .bname{font-weight:600;}
-.bar-track{background:var(--paper);border-radius:8px;height:8px;overflow:hidden;}
-.bar-fill{height:100%;background:var(--brass);border-radius:8px;}
-.bar-fill.month{background:var(--ink);}
-.trend-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px;}
-.trend-row .mlabel{width:52px;flex:0 0 auto;color:var(--ink-soft);}
-.trend-row .tbars{flex:1;display:flex;flex-direction:column;gap:3px;}
-.trend-row .tbar-track{background:var(--paper);border-radius:6px;height:7px;overflow:hidden;}
-.trend-row .tbar-fill{height:100%;border-radius:6px;}
-.trend-row .tbar-fill.credit{background:var(--credit);}
-.trend-row .tbar-fill.debit{background:var(--debit);}
-.item-price-card{
-  background:var(--white);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px;
-}
-.item-price-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
-.item-price-head .iname{font-weight:600;font-size:14px;}
-.item-price-head .ibest{font-size:11px;color:var(--credit);font-weight:600;}
-.shop-row{
-  display:flex;justify-content:space-between;align-items:center;font-size:12px;
-  padding:6px 0;border-top:1px dashed var(--paper-line);
-}
-.shop-row:first-of-type{border-top:none;}
-.shop-row .sname{color:var(--ink);}
-.shop-row .sname .sdate{color:var(--ink-soft);font-size:10.5px;display:block;}
-.shop-row .srate{font-family:'IBM Plex Mono',monospace;font-weight:600;}
-.shop-row.cheapest .srate{color:var(--credit);}
-.shop-row.cheapest .sname::before{content:"🏆 ";}
+.item-category-hint.show{display:block;}
 </style>
 </head>
 <body>
@@ -521,20 +361,86 @@ input,select,textarea{font-family:inherit;}
   <div class="auth-logo">
     <div class="stamp">₹</div>
     <h1 style="font-size:22px;">Khata</h1>
-    <div style="color:var(--ink-soft);font-size:13px;margin-top:2px;">your expenses, synced everywhere</div>
-  </div>
-  <div class="auth-card">
-    <div class="auth-tabs">
-      <button id="tabLogin" class="on" onclick="setAuthTab('login')">Sign in</button>
-      <button id="tabSignup" onclick="setAuthTab('signup')">Create account</button>
+    <div style="color:var(--ink-soft);font-size:13px;margin-top:2px;">
+      your expenses, synced everywhere
     </div>
-    <div class="field"><label>Email / User ID</label><input id="authEmail" type="text" placeholder="you@example.com or nickname"></div>
-    <div class="field"><label>Password</label><input id="authPass" type="password" placeholder="At least 6 characters"></div>
-    <button class="btn primary" style="width:100%" onclick="doAuth()">Continue</button>
-    <div class="auth-msg" id="authMsg"></div>
-    <button class="offline-link" onclick="useOffline()">Skip — use on this device only (no cloud sync)</button>
   </div>
+
+  <div class="auth-card">
+
+    <div class="auth-tabs">
+      <button id="tabLogin" class="on" onclick="setAuthTab('login')">
+        Sign in
+      </button>
+      <button id="tabSignup" onclick="setAuthTab('signup')">
+        Create account
+      </button>
+    </div>
+
+    <div class="field">
+      <label>Email / User ID</label>
+      <input
+        id="authEmail"
+        type="text"
+        placeholder="you@example.com or nickname"
+      >
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <div style="position:relative;">
+        <input
+          id="authPass"
+          type="password"
+          placeholder="At least 6 characters"
+          style="padding-right:45px;"
+        >
+        <button
+          type="button"
+          onclick="togglePassword()"
+          id="showPassBtn"
+          aria-label="Show password"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:18px;padding:4px;"
+        >👁</button>
+      </div>
+    </div>
+
+    <button class="offline-link" style="margin:0 0 14px;" onclick="forgotPassword()">
+      Forgot password?
+    </button>
+
+    <button
+      class="btn primary"
+      style="width:100%"
+      onclick="doAuth()"
+    >
+      Continue
+    </button>
+
+    <div class="auth-msg" id="authMsg"></div>
+
+    <button
+      class="offline-link"
+      onclick="useOffline()"
+    >
+      Skip — use on this device only (no cloud sync)
+    </button>
+
+  </div>
+
   <div class="setup-note" id="setupNote"></div>
+</div>
+
+<!-- ============ DEVICE LOCK ============ -->
+<div class="app-lock" id="appLock" role="dialog" aria-modal="true" aria-labelledby="appLockTitle">
+  <div class="lock-card">
+    <div class="lock-icon">🔐</div>
+    <h2 id="appLockTitle">Khata is locked</h2>
+    <p>Use your phone fingerprint, face, PIN, or pattern to open your records.</p>
+    <button class="btn primary" style="width:100%;" onclick="unlockWithBiometric()">Unlock with device</button>
+    <button class="offline-link" onclick="usePasswordFallback()">Use Khata password instead</button>
+    <div class="lock-msg" id="appLockMsg"></div>
+  </div>
 </div>
 
 <!-- ============ MAIN APP ============ -->
@@ -554,65 +460,55 @@ input,select,textarea{font-family:inherit;}
       <span class="credit">▲ In <span id="totalCredit" class="mono">₹0</span></span>
       <span class="debit">▼ Out <span id="totalDebit" class="mono">₹0</span></span>
     </div>
+    <div class="balance-today">
+      <span>Spent today</span>
+      <b id="spentToday" class="mono">₹0</b>
+    </div>
   </div>
 
   <!-- TRANSACTIONS TAB -->
   <div class="section active" id="tab-transactions">
-    <div class="search-box">
-  <span class="search-ico">🔎</span>
-  <input id="txSearchInput" type="text" placeholder="Search note, item, shop..." oninput="onSearchInput()">
-  <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✕</button>
-</div>
-
-<div class="filters">
-  <button class="period-btn active" data-period="today" onclick="setPeriod('today')">Today</button>
-  <button class="period-btn" data-period="week" onclick="setPeriod('week')">This week</button>
-  <button class="period-btn" data-period="month" onclick="setPeriod('month')">This month</button>
-  <button class="period-btn" data-period="all" onclick="setPeriod('all')">All</button>
-</div>
-
-<div class="transaction-tools">
-  <span>Date</span>
-  <button id="sortAmountBtn" onclick="toggleAmountSort()">Amount ↓</button>
-</div>
-
-<div class="filter-btn-row">
-  <button class="more-filters-btn" onclick="toggleMoreFilters()">
-    + More filters
-  </button>
-  <button class="clear-filters-btn" id="clearFiltersBtn" onclick="clearAllFilters()">✕ Clear filters</button>
-</div>
-
-<div id="moreFilters" class="more-filters" style="display:none;flex-wrap:wrap;">
-  <select id="fltAccount">
-    <option value="">All accounts</option>
-  </select>
-
-  <select id="fltCategory" onchange="onCategoryFilterChange()">
-    <option value="">All categories</option>
-  </select>
-
-  <select id="fltSubcategory">
-    <option value="">All sub-categories</option>
-  </select>
-
-  <select id="fltType">
-    <option value="">All types</option>
-    <option value="credit">Credit (in)</option>
-    <option value="debit">Debit (out)</option>
-  </select>
-
-  <div class="amount-range">
-    <input id="fltMinAmount" type="number" min="0" step="0.01" placeholder="Min ₹">
-    <span>–</span>
-    <input id="fltMaxAmount" type="number" min="0" step="0.01" placeholder="Max ₹">
-  </div>
-</div>
-
-<div id="filteredSummary" class="filtered-summary"></div>
-
-<div id="txList"></div>
-	
+    <div class="period-chips" id="periodChips">
+      <button class="on" data-period="today" onclick="setLedgerPeriod('today')">Today</button>
+      <button data-period="week" onclick="setLedgerPeriod('week')">This week</button>
+      <button data-period="month" onclick="setLedgerPeriod('month')">This month</button>
+      <button data-period="all" onclick="setLedgerPeriod('all')">All</button>
+    </div>
+    <div class="toolrow">
+      <div class="search-wrap">
+        <input type="text" id="txSearch" placeholder="Search all records…" oninput="renderTransactions()" onkeydown="handleSearchKey(event)">
+        <button type="button" class="search-clear-btn" id="txSearchClear" aria-label="Clear search" title="Clear search" onclick="clearTransactionSearch()">×</button>
+      </div>
+      <select id="sortBy" onchange="renderTransactions()">
+        <option value="date">Date</option>
+        <option value="amount">Amount</option>
+      </select>
+      <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()">↓</button>
+    </div>
+    <div class="date-range-head">
+      <span>Search by date</span>
+      <button type="button" onclick="clearDateRange()">Clear dates</button>
+    </div>
+    <div class="date-range">
+      <label>From<input type="date" id="fltFromDate" onchange="onDateRangeChange('from')"></label>
+      <label>To<input type="date" id="fltToDate" onchange="onDateRangeChange('to')"></label>
+    </div>
+    <div class="search-scope-hint" id="searchScopeHint">Searching all dates and fields</div>
+    <button class="filters-toggle" onclick="toggleMoreFilters()" id="moreFiltersBtn">+ More filters</button>
+    <div id="moreFilters" style="display:none;">
+      <div class="filters">
+        <select id="fltAccount" onchange="renderTransactions()"><option value="">All accounts</option></select>
+        <select id="fltCategory" onchange="onFltCategoryChange()"><option value="">All categories</option></select>
+        <select id="fltSubcategory" onchange="renderTransactions()"><option value="">All sub-categories</option></select>
+        <select id="fltType" onchange="renderTransactions()"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option></select>
+      </div>
+      <div class="amount-range">
+        <input type="number" id="fltMinAmt" placeholder="Min ₹" oninput="renderTransactions()">
+        <input type="number" id="fltMaxAmt" placeholder="Max ₹" oninput="renderTransactions()">
+      </div>
+    </div>
+    <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0</div>
+    <div id="txList"></div>
   </div>
 
   <!-- ACCOUNTS TAB -->
@@ -630,26 +526,35 @@ input,select,textarea{font-family:inherit;}
   <!-- INSIGHTS TAB -->
   <div class="section" id="tab-insights">
     <div class="section-head"><h2>Insights</h2></div>
-    <div class="inner-tabs">
-      <button id="innerTabSpending" class="on" onclick="setInsightsView('spending')">📊 Spending</button>
-      <button id="innerTabPrices" onclick="setInsightsView('prices')">🏪 Price tracker</button>
+
+    <div class="insight-card">
+      <h3>Spend by category</h3>
+      <div class="period-chips" id="insightChips">
+        <button data-period="month" class="on" onclick="setInsightPeriod('month')">This month</button>
+        <button data-period="3m" onclick="setInsightPeriod('3m')">3 months</button>
+        <button data-period="6m" onclick="setInsightPeriod('6m')">6 months</button>
+        <button data-period="all" onclick="setInsightPeriod('all')">All time</button>
+      </div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      <div class="legend-list" id="pieLegend"></div>
     </div>
 
-    <div id="insightsSpendingView">
-      <div class="filters" style="margin-bottom:12px;">
-        <button class="period-btn" data-iperiod="week" onclick="setInsightsPeriod('week')">This week</button>
-        <button class="period-btn active" data-iperiod="month" onclick="setInsightsPeriod('month')">This month</button>
-        <button class="period-btn" data-iperiod="all" onclick="setInsightsPeriod('all')">All time</button>
-      </div>
-      <div id="insightsContent"></div>
+    <div class="insight-card">
+      <h3>3-month vs 6-month average spend</h3>
+      <table class="avg-table" id="avgTable">
+        <thead><tr><th>Category</th><th>3-mo avg</th><th>6-mo avg</th><th>Trend</th></tr></thead>
+        <tbody id="avgTableBody"></tbody>
+      </table>
     </div>
 
-    <div id="insightsPricesView" style="display:none;">
-      <div class="search-box">
-        <span class="search-ico">🔎</span>
-        <input id="priceSearchInput" type="text" placeholder="Search item..." oninput="renderPriceTracker()">
+    <div class="insight-card">
+      <h3>Price tracker — same item, different shops</h3>
+      <div class="price-item-picker">
+        <select id="priceItemSelect" onchange="renderPriceTracker()">
+          <option value="">Select an item you've tagged…</option>
+        </select>
       </div>
-      <div id="priceTrackerContent"></div>
+      <div id="priceTrackerBody"></div>
     </div>
   </div>
 
@@ -659,6 +564,15 @@ input,select,textarea{font-family:inherit;}
     <div class="list-row">
       <div class="list-row-name" id="settingsEmail">Offline mode</div>
       <div class="list-row-type" id="settingsSyncStatus">Not signed in</div>
+    </div>
+    <div class="list-row" id="biometricSettingsRow">
+      <div class="list-row-top">
+        <div>
+          <div class="list-row-name">🔒 Fingerprint / device lock</div>
+          <div class="list-row-type" id="biometricStatus">Checking device support…</div>
+        </div>
+        <button class="icon-btn" id="biometricToggleBtn" style="display:none;" onclick="toggleBiometricLock()">Enable</button>
+      </div>
     </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
       <button class="btn ghost" onclick="exportData()">Export data (.json)</button>
@@ -674,9 +588,9 @@ input,select,textarea{font-family:inherit;}
 
 <div class="bottomnav" id="bottomnav" style="display:none;">
   <button class="navbtn active" data-tab="transactions" onclick="switchTab('transactions')"><span class="ico">📒</span>Ledger</button>
+  <button class="navbtn" data-tab="insights" onclick="switchTab('insights')"><span class="ico">📊</span>Insights</button>
   <button class="navbtn" data-tab="accounts" onclick="switchTab('accounts')"><span class="ico">💳</span>Accounts</button>
   <button class="navbtn" data-tab="categories" onclick="switchTab('categories')"><span class="ico">🏷️</span>Categories</button>
-  <button class="navbtn" data-tab="insights" onclick="switchTab('insights')"><span class="ico">📊</span>Insights</button>
   <button class="navbtn" data-tab="settings" onclick="switchTab('settings')"><span class="ico">⚙️</span>Settings</button>
 </div>
 
@@ -693,22 +607,22 @@ input,select,textarea{font-family:inherit;}
         <button type="button" id="segCredit" class="credit" onclick="setTxType('credit')">Credit (received)</button>
       </div>
     </div>
-    <div class="field"><label>Amount (₹)</label><input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" oninput="updateRatePreview()"></div>
+    <div class="field"><label>Amount (₹)</label><input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
     <div style="display:flex;gap:10px;">
       <div class="field" style="flex:1;"><label>Date</label><input id="txDate" type="date"></div>
       <div class="field" style="flex:1;"><label>Time</label><input id="txTime" type="time"></div>
     </div>
     <div class="field">
       <label>Payment mode / account</label>
-      <select id="txAccount"></select>
+      <select id="txAccount" onfocus="this.dataset.previous=this.value" onchange="onTxAccountChange()"></select>
     </div>
     <div class="field">
       <label>Category</label>
-      <select id="txCategory" onchange="populateSubcatOptions()"></select>
+      <select id="txCategory" onfocus="this.dataset.previous=this.value" onchange="onTxCategoryChange()"></select>
     </div>
     <div class="field">
       <label>Sub-category</label>
-      <select id="txSubcategory"></select>
+      <select id="txSubcategory" onfocus="this.dataset.previous=this.value" onchange="onTxSubcategoryChange()"></select>
     </div>
     <div class="field">
       <label>Repeat expense</label>
@@ -719,32 +633,42 @@ input,select,textarea{font-family:inherit;}
         <option value="monthly">Monthly</option>
       </select>
     </div>
-    <div style="display:flex;gap:10px;">
-      <div class="field" style="flex:1;"><label>Item (optional)</label><input id="txItem" placeholder="e.g. Milk, Rice, Petrol..." oninput="updateRatePreview()"></div>
-      <div class="field" style="flex:1;"><label>Shop (optional)</label><input id="txShop" placeholder="e.g. D-Mart, local kirana..."></div>
-    </div>
-    <div style="display:flex;gap:10px;">
-      <div class="field" style="flex:1;"><label>Quantity (optional)</label><input id="txQuantity" type="number" min="0" step="0.01" placeholder="e.g. 2" oninput="updateRatePreview()"></div>
-      <div class="field" style="flex:1;">
-        <label>Unit</label>
-        <select id="txUnit" onchange="updateRatePreview()">
-          <option value="">—</option>
-          <option value="kg">kg</option>
-          <option value="g">g</option>
-          <option value="l">l</option>
-          <option value="ml">ml</option>
-          <option value="pc">pc</option>
-          <option value="dozen">dozen</option>
-          <option value="pack">pack</option>
-          <option value="other">other</option>
-        </select>
+    <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
+
+    <button type="button" class="item-toggle" id="itemToggleBtn" onclick="toggleItemFields()">
+      <span>+ Item &amp; shop details (optional)</span><span id="itemToggleIcon">▾</span>
+    </button>
+    <div class="item-fields" id="itemFields">
+      <div class="field">
+        <label>Item name <span style="font-weight:400;">(for price tracking, e.g. Red Rice)</span></label>
+        <input id="txItemName" list="itemNameOptions" placeholder="Type existing or add new item" oninput="updateUnitHint()" onchange="applyItemCategorySuggestion()">
+        <datalist id="itemNameOptions"></datalist>
+      </div>
+      <div class="item-category-hint" id="itemCategoryHint"></div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Quantity</label><input id="txQty" type="number" min="0" step="0.01" placeholder="e.g. 5" oninput="updateUnitHint()"></div>
+        <div class="field" style="flex:1;">
+          <label>Unit</label>
+          <select id="txUnit" onchange="updateUnitHint()">
+            <option value="">—</option>
+            <option value="kg">kg</option>
+            <option value="g">g</option>
+            <option value="litre">litre</option>
+            <option value="ml">ml</option>
+            <option value="pcs">pcs</option>
+            <option value="dozen">dozen</option>
+            <option value="packet">packet</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Shop <span style="font-weight:400;">(optional)</span></label>
+        <input id="txShop" list="shopOptions" placeholder="Type existing or add new shop">
+        <datalist id="shopOptions"></datalist>
       </div>
     </div>
-    <div class="field" id="ratePreviewField" style="display:none;">
-      <label>Rate (auto-calculated)</label>
-      <div class="tx-rate" id="ratePreview" style="display:inline-block;"></div>
-    </div>
-    <div class="field"><label>Note</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
+    <div class="unit-hint" id="unitHint" style="display:none;"></div>
+
     <div class="modal-actions">
       <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
       <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
@@ -757,7 +681,7 @@ input,select,textarea{font-family:inherit;}
 <!-- ============ ACCOUNT MODAL ============ -->
 <div class="overlay" id="accOverlay">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('accOverlay')">✕</button>
+    <button class="close-x" onclick="closeAccountModal()">✕</button>
     <h3 id="accModalTitle">Add account</h3>
     <input type="hidden" id="accId">
     <div class="field">
@@ -772,7 +696,7 @@ input,select,textarea{font-family:inherit;}
     <div class="field"><label>Label / last 4 digits / UPI ID</label><input id="accLabel" placeholder="e.g. Savings •1234 or name@upi"></div>
     <div class="modal-actions">
       <button class="btn ghost" id="accDeleteBtn" style="display:none;" onclick="deleteCurrentAccount()">Delete</button>
-      <button class="btn ghost" onclick="closeModal('accOverlay')">Cancel</button>
+      <button class="btn ghost" onclick="closeAccountModal()">Cancel</button>
       <button class="btn primary" onclick="saveAccount()">Save</button>
     </div>
   </div>
@@ -781,13 +705,13 @@ input,select,textarea{font-family:inherit;}
 <!-- ============ CATEGORY MODAL ============ -->
 <div class="overlay" id="catOverlay">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('catOverlay')">✕</button>
+    <button class="close-x" onclick="closeCategoryModal()">✕</button>
     <h3 id="catModalTitle">Add category</h3>
     <input type="hidden" id="catId">
     <div class="field"><label>Category name</label><input id="catName" placeholder="e.g. Food, Travel, Bills..."></div>
     <div class="modal-actions">
       <button class="btn ghost" id="catDeleteBtn" style="display:none;" onclick="deleteCurrentCategory()">Delete</button>
-      <button class="btn ghost" onclick="closeModal('catOverlay')">Cancel</button>
+      <button class="btn ghost" onclick="closeCategoryModal()">Cancel</button>
       <button class="btn primary" onclick="saveCategory()">Save</button>
     </div>
   </div>
@@ -809,6 +733,7 @@ const firebaseConfig = {
 const CLOUD_ENABLED = true;
 let db = null, auth = null, currentUser = null;
 let unsubUserDoc = null, unsubTx = null;
+const BIOMETRIC_KEY = 'khata_biometric_lock_v1';
 
 firebase.initializeApp(firebaseConfig);
 auth = firebase.auth();
@@ -845,21 +770,13 @@ const DEFAULT_CATEGORIES = [
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
 
-/* ---- Unit rate helpers ---- */
-function computeRate(t){
-  const qty = Number(t.quantity);
-  const amt = Number(t.amount);
-  if (qty && qty>0 && amt) return amt/qty;
-  return null;
-}
-function formatRate(t){
-  const r = computeRate(t);
-  if (r==null) return '';
-  return inr(r) + '/' + (t.unit || 'unit');
-}
-
 /* =========================================================================
-   PERSISTENCE — Firestore & LocalStorage Backup
+   PERSISTENCE — Local-first write queue, flushed to Firestore
+   Every change saves to localStorage immediately (never lost, works
+   offline), then queues a matching cloud write. The queue is flushed
+   whenever we're online + signed in — including right after sign-in,
+   so nothing entered while offline/unauthenticated gets overwritten
+   by the cloud snapshot.
 ========================================================================= */
 function localSave(){
   localStorage.setItem('khata_state', JSON.stringify(state));
@@ -881,23 +798,23 @@ function localLoad(){
 }
 
 function checkRecurringExpenses(){
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayDateValue = localDateStr();
   const lastCheck = localStorage.getItem('khata_last_recurring_check');
-  if (lastCheck === todayStr) return;
+  if (lastCheck === todayDateValue) return;
 
   let added = false;
   const newTxs = [];
   state.transactions.forEach(t => {
     if (t.repeat && t.repeat !== 'none' && t.date) {
       let nextDate = new Date(t.date + 'T00:00:00');
-      let todayDate = new Date(todayStr + 'T00:00:00');
+      let todayDate = new Date(todayDateValue + 'T00:00:00');
       
       while (nextDate < todayDate) {
         if (t.repeat === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
         else if (t.repeat === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
         else if (t.repeat === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
 
-        const nextDateStr = nextDate.toISOString().slice(0,10);
+        const nextDateStr = localDateStr(nextDate);
         if (nextDate <= todayDate) {
           const exists = state.transactions.some(existing => existing.recurringParentId === t.id && existing.date === nextDateStr);
           if (!exists) {
@@ -911,10 +828,6 @@ function checkRecurringExpenses(){
               accountId: t.accountId,
               categoryId: t.categoryId,
               subcategory: t.subcategory,
-              item: t.item || '',
-              shop: t.shop || '',
-              quantity: t.quantity || '',
-              unit: t.unit || '',
               repeat: 'none',
               note: (t.note || '') + ' (Recurring)'
             });
@@ -928,20 +841,76 @@ function checkRecurringExpenses(){
   if (added) {
     state.transactions.push(...newTxs);
     localSave();
+    newTxs.forEach(t => queueOp({kind:'tx-set', id:t.id, payload:t}));
+    flushQueue();
   }
-  localStorage.setItem('khata_last_recurring_check', todayStr);
+  localStorage.setItem('khata_last_recurring_check', todayDateValue);
 }
+
+/* ---- Write queue: survives offline / not-signed-in, flushes later ---- */
+function getQueue(){
+  try { return JSON.parse(localStorage.getItem('khata_sync_queue') || '[]'); }
+  catch(e) { return []; }
+}
+function setQueue(q){
+  localStorage.setItem('khata_sync_queue', JSON.stringify(q));
+  updateQueueIndicator(q.length);
+}
+function queueOp(op){
+  let q = getQueue();
+  if (op.kind === 'meta') {
+    q = q.filter(o => o.kind !== 'meta'); // last-write-wins for meta
+  } else {
+    q = q.filter(o => o.id !== op.id); // later op on same tx supersedes
+  }
+  q.push(op);
+  setQueue(q);
+}
+function flushQueue(){
+  const q = getQueue();
+  updateQueueIndicator(q.length);
+  if (!CLOUD_ENABLED || !currentUser || !navigator.onLine || !q.length) return;
+  const userRef = db.collection('users').doc(currentUser.uid);
+  const jobs = q.map(op => {
+    if (op.kind === 'tx-set') return userRef.collection('transactions').doc(op.id).set(op.payload);
+    if (op.kind === 'tx-delete') return userRef.collection('transactions').doc(op.id).delete();
+    if (op.kind === 'meta') return userRef.set({accounts: op.payload.accounts, categories: op.payload.categories}, {merge:true});
+    return Promise.resolve();
+  });
+  Promise.all(jobs).then(() => {
+    setQueue([]);
+  }).catch(err => {
+    console.warn('Sync queue flush failed — will retry when back online.', err);
+  });
+}
+function updateQueueIndicator(n){
+  const pill = document.getElementById('syncPill');
+  const txt = document.getElementById('syncText');
+  if (!pill) return;
+  if (n > 0) {
+    pill.className = 'sync-pill queued';
+    txt.textContent = currentUser ? `Syncing… (${n})` : `Saved locally (${n} to sync)`;
+  } else if (currentUser) {
+    pill.className = 'sync-pill on';
+    txt.textContent = 'Synced';
+  } else {
+    pill.className = 'sync-pill off';
+    txt.textContent = 'Offline';
+  }
+}
+window.addEventListener('online', flushQueue);
 
 function cloudSaveMeta(){
   localSave();
-  if (!CLOUD_ENABLED || !currentUser) return;
-  db.collection('users').doc(currentUser.uid).set({
-    accounts: state.accounts,
-    categories: state.categories
-  }, {merge:true});
+  queueOp({kind:'meta', payload:{accounts: state.accounts, categories: state.categories}});
+  flushQueue();
 }
 
 function attachCloudListeners(){
+  // Push anything saved while offline/unauthenticated BEFORE letting the
+  // cloud snapshot take over, so local-only entries are merged up rather
+  // than silently overwritten.
+  flushQueue();
   const userRef = db.collection('users').doc(currentUser.uid);
   unsubUserDoc = userRef.onSnapshot(doc=>{
     if (doc.exists) {
@@ -968,10 +937,7 @@ function detachCloudListeners(){
 }
 
 function setSyncStatus(on){
-  const pill = document.getElementById('syncPill');
-  const txt = document.getElementById('syncText');
-  pill.className = 'sync-pill ' + (on ? 'on' : 'off');
-  txt.textContent = on ? 'Synced' : 'Offline';
+  updateQueueIndicator(getQueue().length);
   document.getElementById('settingsSyncStatus').textContent = on ? 'Cloud sync active — syncing via Firebase (moneypurse-def5c)' : 'Not signed in';
 }
 
@@ -985,18 +951,48 @@ function setAuthTab(mode){
   document.getElementById('tabSignup').classList.toggle('on', mode==='signup');
   document.getElementById('authMsg').textContent = '';
 }
+function togglePassword(){
+  const input = document.getElementById('authPass');
+  const btn = document.getElementById('showPassBtn');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? '👁' : '🙈';
+  btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+}
+function forgotPassword(){
+  const emailInput = document.getElementById('authEmail').value.trim();
+  const msg = document.getElementById('authMsg');
+  if (!emailInput || !emailInput.includes('@')) {
+    msg.textContent = 'Enter the email address used for this account. Password reset is not available for nickname-only IDs.';
+    return;
+  }
+  auth.sendPasswordResetEmail(emailInput)
+    .then(()=>{ msg.textContent = 'Password reset email sent. Please check your inbox.'; })
+    .catch(err=>{ msg.textContent = err.message; });
+}
 function doAuth(){
   const emailInput = document.getElementById('authEmail').value.trim();
-  localStorage.setItem('khata_last_user', emailInput);
-
-  const email = emailInput.includes('@') ? emailInput : emailInput + '@khata.local';
   const pass = document.getElementById('authPass').value;
   const msg = document.getElementById('authMsg');
-  if (!email || pass.length < 6) { msg.textContent = 'Enter a valid ID/email and a password (6+ chars).'; return; }
+
+  if (!emailInput || pass.length < 6) {
+    msg.textContent = 'Enter a valid ID/email and a password (6+ chars).';
+    return;
+  }
+
+  localStorage.setItem('khata_last_user', emailInput);
+
+  const email = emailInput.includes('@')
+    ? emailInput
+    : emailInput + '@khata.local';
+
   const action = authMode === 'login'
     ? auth.signInWithEmailAndPassword(email, pass)
     : auth.createUserWithEmailAndPassword(email, pass);
-  action.catch(err => { msg.textContent = err.message; });
+
+  action.catch(err => {
+    msg.textContent = err.message;
+  });
 }
 function useOffline(){
   currentUser = null;
@@ -1012,6 +1008,10 @@ function signOutUser(){
 auth.onAuthStateChanged(user=>{
   if (user) {
     currentUser = user;
+    if (sessionStorage.getItem('khata_password_fallback_pending') === '1') {
+      sessionStorage.removeItem('khata_password_fallback_pending');
+      sessionStorage.setItem('khata_skip_biometric_once','1');
+    }
     attachCloudListeners();
     showApp(true, user.email);
   }
@@ -1032,83 +1032,167 @@ function showApp(cloud, email){
     setSyncStatus(false);
   }
   renderAll();
+  updateBiometricUI();
+  maybeShowAppLock();
 }
+
 /* =========================================================================
-   LEDGER FILTERS & SORTING
+   OPTIONAL DEVICE LOCK (WebAuthn / Android biometrics)
+   This is a privacy lock for the already-authenticated app. The device keeps
+   the biometric data; Khata stores only the public credential identifier.
 ========================================================================= */
-
-let selectedPeriod = 'today';
-let amountSortDesc = true;
-
-function setPeriod(period){
-  selectedPeriod = period;
-
-  document.querySelectorAll('.period-btn').forEach(btn=>{
-    btn.classList.toggle(
-      'active',
-      btn.dataset.period === period
-    );
-  });
-
-  renderTransactions();
+function randomBytes(length=32){
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
 }
-
-function toggleAmountSort(){
-  amountSortDesc = !amountSortDesc;
-
-  document.getElementById('sortAmountBtn').textContent =
-    amountSortDesc ? 'Amount ↓' : 'Amount ↑';
-
-  renderTransactions();
+function bytesToBase64Url(bytes){
+  let binary = '';
+  bytes.forEach(b=>binary += String.fromCharCode(b));
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-
-function toggleMoreFilters(){
-  const box = document.getElementById('moreFilters');
-  const btn = document.querySelector('.more-filters-btn');
-
-  if (box.style.display === 'none' || box.style.display === '') {
-    box.style.display = 'flex';
-    btn.textContent = '− Hide filters';
+function base64UrlToBytes(value){
+  const padded = value.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((value.length+3)%4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, c=>c.charCodeAt(0));
+}
+function getBiometricConfig(){
+  try { return JSON.parse(localStorage.getItem(BIOMETRIC_KEY) || 'null'); }
+  catch(e) { return null; }
+}
+async function deviceLockSupported(){
+  if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) return false;
+  try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(e) { return false; }
+}
+async function updateBiometricUI(){
+  const status = document.getElementById('biometricStatus');
+  const btn = document.getElementById('biometricToggleBtn');
+  if (!status || !btn) return;
+  const supported = await deviceLockSupported();
+  if (!supported) {
+    status.textContent = 'Not available on this browser or device';
+    btn.style.display = 'none';
+    return;
+  }
+  if (!currentUser) {
+    status.textContent = 'Sign in to your Khata account to enable';
+    btn.style.display = 'none';
+    return;
+  }
+  const config = getBiometricConfig();
+  const enabled = !!(config && config.credentialId && config.userEmail === currentUser.email);
+  status.textContent = enabled ? 'Enabled on this device' : 'Available on this device';
+  btn.textContent = enabled ? 'Disable' : 'Enable';
+  btn.style.display = 'block';
+}
+async function toggleBiometricLock(){
+  const config = getBiometricConfig();
+  const enabled = !!(config && currentUser && config.userEmail === currentUser.email);
+  if (enabled) {
+    if (!confirm('Disable fingerprint / device lock on this device?')) return;
+    localStorage.removeItem(BIOMETRIC_KEY);
+    updateBiometricUI();
+    return;
+  }
+  if (!currentUser) {
+    alert('Sign in to your Khata account before enabling device lock.');
+    return;
+  }
+  try {
+    const supported = await deviceLockSupported();
+    if (!supported) throw new Error('Device verification is not available in this browser.');
+    const credential = await navigator.credentials.create({publicKey:{
+      challenge: randomBytes(),
+      rp: {name:'Khata Expense Tracker'},
+      user: {
+        id: randomBytes(24),
+        name: currentUser.email || 'khata-user',
+        displayName: currentUser.email || 'Khata user'
+      },
+      pubKeyCredParams: [{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection: {
+        authenticatorAttachment:'platform',
+        residentKey:'preferred',
+        userVerification:'required'
+      },
+      timeout:60000,
+      attestation:'none'
+    }});
+    if (!credential) return;
+    localStorage.setItem(BIOMETRIC_KEY, JSON.stringify({
+      credentialId: bytesToBase64Url(new Uint8Array(credential.rawId)),
+      userEmail: currentUser.email,
+      enabledAt: new Date().toISOString()
+    }));
+    await updateBiometricUI();
+    alert('Fingerprint / device lock is now enabled on this device.');
+  } catch(err) {
+    if (err.name !== 'NotAllowedError') alert(err.message || 'Device lock could not be enabled.');
+  }
+}
+function showAppLock(){
+  const lock = document.getElementById('appLock');
+  if (!lock) return;
+  document.getElementById('appLockMsg').textContent = '';
+  lock.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function hideAppLock(){
+  const lock = document.getElementById('appLock');
+  if (!lock) return;
+  lock.classList.remove('show');
+  document.body.style.overflow = '';
+}
+function maybeShowAppLock(){
+  if (sessionStorage.getItem('khata_skip_biometric_once') === '1') {
+    sessionStorage.removeItem('khata_skip_biometric_once');
+    return;
+  }
+  const config = getBiometricConfig();
+  if (config && config.credentialId && (!currentUser || config.userEmail === currentUser.email)) showAppLock();
+}
+async function unlockWithBiometric(){
+  const msg = document.getElementById('appLockMsg');
+  const config = getBiometricConfig();
+  if (!config || !config.credentialId) {
+    hideAppLock();
+    return;
+  }
+  msg.textContent = '';
+  try {
+    const credential = await navigator.credentials.get({publicKey:{
+      challenge: randomBytes(),
+      allowCredentials:[{
+        id:base64UrlToBytes(config.credentialId),
+        type:'public-key',
+        transports:['internal']
+      }],
+      userVerification:'required',
+      timeout:60000
+    }});
+    if (credential && bytesToBase64Url(new Uint8Array(credential.rawId)) === config.credentialId) {
+      hideAppLock();
+    } else {
+      msg.textContent = 'Device verification did not match.';
+    }
+  } catch(err) {
+    msg.textContent = err.name === 'NotAllowedError'
+      ? 'Verification was cancelled. Try again or use your Khata password.'
+      : 'Could not use device verification. Use your Khata password instead.';
+  }
+}
+function usePasswordFallback(){
+  sessionStorage.setItem('khata_password_fallback_pending','1');
+  if (auth && auth.currentUser) {
+    auth.signOut().finally(()=>location.reload());
   } else {
-    box.style.display = 'none';
-    btn.textContent = '+ More filters';
+    hideAppLock();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('bottomnav').style.display = 'none';
+    document.getElementById('fabAdd').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'block';
   }
-}
-
-function transactionMatchesPeriod(t){
-
-  if(selectedPeriod === 'all') return true;
-
-  if(!t.date) return false;
-
-  const txDate = new Date(t.date + 'T00:00:00');
-  const today = new Date();
-
-  today.setHours(0,0,0,0);
-
-  if(selectedPeriod === 'today'){
-    return txDate.getTime() === today.getTime();
-  }
-
-  if(selectedPeriod === 'week'){
-    const day = today.getDay();
-
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(
-      today.getDate() - day
-    );
-
-    return txDate >= startOfWeek && txDate <= today;
-  }
-
-  if(selectedPeriod === 'month'){
-    return (
-      txDate.getMonth() === today.getMonth() &&
-      txDate.getFullYear() === today.getFullYear()
-    );
-  }
-
-  return true;
 }
 
 /* =========================================================================
@@ -1119,108 +1203,139 @@ function switchTab(tab){
   document.getElementById('tab-'+tab).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('fabAdd').style.display = (tab==='transactions') ? 'flex' : 'none';
-  if (tab==='insights') {
-    renderInsights();
-    renderPriceTracker();
-  }
+  if (tab === 'insights') renderInsights();
 }
 
 /* =========================================================================
    RENDER
 ========================================================================= */
+let ledgerPeriod = 'today';
+let sortDir = 'desc';
+let insightPeriod = 'month';
+let pieChartInstance = null;
+
 function renderAll(){
   renderBalance();
   renderFilters();
   renderTransactions();
   renderAccounts();
   renderCategories();
-  const insightsTab = document.getElementById('tab-insights');
-  if (insightsTab && insightsTab.classList.contains('active')) {
+  populateItemShopDatalists();
+  if (document.getElementById('tab-insights') && document.getElementById('tab-insights').classList.contains('active')) {
     renderInsights();
-    renderPriceTracker();
   }
 }
 
+/* ---- Date range helpers (device-local dates; avoids UTC day rollover) ---- */
+function localDateStr(d = new Date()){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function todayStr(){ return localDateStr(); }
+function startOfWeekStr(){
+  const d = new Date(); const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - day);
+  return localDateStr(d);
+}
+function startOfMonthStr(){
+  const d = new Date(); d.setDate(1);
+  return localDateStr(d);
+}
+function monthsAgoStr(n){
+  const d = new Date(); d.setMonth(d.getMonth() - n);
+  return localDateStr(d);
+}
+function ledgerDateFilter(t){
+  if (!t.date) return ledgerPeriod === 'all';
+  if (ledgerPeriod === 'today') return t.date === todayStr();
+  if (ledgerPeriod === 'week') return t.date >= startOfWeekStr();
+  if (ledgerPeriod === 'month') return t.date >= startOfMonthStr();
+  return true; // all
+}
+
 function renderBalance(){
-  let credit=0, debit=0;
+  let credit=0, debit=0, today=0;
+  const t0 = todayStr();
   state.transactions.forEach(t=>{
     if (t.type==='credit') credit += Number(t.amount);
     else debit += Number(t.amount);
+    if (t.type==='debit' && t.date===t0) today += Number(t.amount);
   });
   document.getElementById('totalBalance').textContent = inr(credit-debit);
   document.getElementById('totalCredit').textContent = inr(credit);
   document.getElementById('totalDebit').textContent = inr(debit);
+  document.getElementById('spentToday').textContent = inr(today);
 }
 
 function renderFilters(){
   const accSel = document.getElementById('fltAccount');
   const catSel = document.getElementById('fltCategory');
   const curAcc = accSel.value, curCat = catSel.value;
-  accSel.innerHTML = '<option value="">All accounts</option>' + state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
-  catSel.innerHTML = '<option value="">All categories</option>' + state.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  accSel.innerHTML = '<option value="">All accounts</option>' + state.accounts.slice().sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+  catSel.innerHTML = '<option value="">All categories</option>' + state.categories.slice().sort((a,b)=>alphaCompare(a.name,b.name)).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   accSel.value = curAcc; catSel.value = curCat;
-  populateSubcategoryFilter();
+  onFltCategoryChange(true);
 }
 
-function populateSubcategoryFilter(){
+function onFltCategoryChange(preserveSub){
   const catF = document.getElementById('fltCategory').value;
   const subSel = document.getElementById('fltSubcategory');
   const curSub = subSel.value;
-  let subs = [];
-  if (catF) {
-    const cat = state.categories.find(c=>c.id===catF);
-    subs = (cat && cat.subs) || [];
-  } else {
-    const seen = new Set();
-    state.categories.forEach(c=>(c.subs||[]).forEach(s=>seen.add(s)));
-    subs = Array.from(seen);
+  const cat = state.categories.find(c=>c.id===catF);
+  subSel.innerHTML = '<option value="">All sub-categories</option>' + ((cat && cat.subs)||[]).slice().sort(alphaCompare).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if (preserveSub) subSel.value = curSub;
+  renderTransactions();
+}
+
+function setLedgerPeriod(p){
+  ledgerPeriod = p;
+  document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
+  renderTransactions();
+}
+function toggleMoreFilters(){
+  const box = document.getElementById('moreFilters');
+  const btn = document.getElementById('moreFiltersBtn');
+  const show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? '− Fewer filters' : '+ More filters';
+}
+function toggleSortDir(){
+  sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sortDirBtn').textContent = sortDir==='desc' ? '↓' : '↑';
+  renderTransactions();
+}
+function clearTransactionSearch(){
+  const input = document.getElementById('txSearch');
+  input.value = '';
+  renderTransactions();
+  input.focus();
+}
+function handleSearchKey(event){
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    clearTransactionSearch();
   }
-  subSel.innerHTML = '<option value="">All sub-categories</option>' + subs.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  if (subs.includes(curSub)) subSel.value = curSub;
 }
-
-function onCategoryFilterChange(){
-  populateSubcategoryFilter();
+function onDateRangeChange(changed){
+  const from = document.getElementById('fltFromDate');
+  const to = document.getElementById('fltToDate');
+  if (from.value && to.value && from.value > to.value) {
+    if (changed === 'from') to.value = from.value;
+    else from.value = to.value;
+  }
+  to.min = from.value || '';
+  from.max = to.value || '';
   renderTransactions();
 }
-
-function onSearchInput(){
-  const val = document.getElementById('txSearchInput').value;
-  document.getElementById('clearSearchBtn').style.display = val ? 'inline-block' : 'none';
-  renderTransactions();
-}
-function clearSearch(){
-  document.getElementById('txSearchInput').value = '';
-  document.getElementById('clearSearchBtn').style.display = 'none';
-  renderTransactions();
-}
-
-function hasActiveFilters(){
-  return !!(
-    document.getElementById('txSearchInput').value.trim() ||
-    document.getElementById('fltAccount').value ||
-    document.getElementById('fltCategory').value ||
-    document.getElementById('fltSubcategory').value ||
-    document.getElementById('fltType').value ||
-    document.getElementById('fltMinAmount').value ||
-    document.getElementById('fltMaxAmount').value
-  );
-}
-
-function updateClearFiltersVisibility(){
-  document.getElementById('clearFiltersBtn').classList.toggle('show', hasActiveFilters());
-}
-
-function clearAllFilters(){
-  document.getElementById('txSearchInput').value = '';
-  document.getElementById('clearSearchBtn').style.display = 'none';
-  document.getElementById('fltAccount').value = '';
-  document.getElementById('fltCategory').value = '';
-  document.getElementById('fltType').value = '';
-  document.getElementById('fltMinAmount').value = '';
-  document.getElementById('fltMaxAmount').value = '';
-  populateSubcategoryFilter();
-  document.getElementById('fltSubcategory').value = '';
+function clearDateRange(){
+  const from = document.getElementById('fltFromDate');
+  const to = document.getElementById('fltToDate');
+  from.value = '';
+  to.value = '';
+  from.max = '';
+  to.min = '';
   renderTransactions();
 }
 
@@ -1234,178 +1349,90 @@ function renderTransactions(){
   const catF = document.getElementById('fltCategory').value;
   const subF = document.getElementById('fltSubcategory').value;
   const typeF = document.getElementById('fltType').value;
-  const minF = parseFloat(document.getElementById('fltMinAmount').value);
-  const maxF = parseFloat(document.getElementById('fltMaxAmount').value);
-  const searchF = document.getElementById('txSearchInput').value.trim().toLowerCase();
+  const minAmt = parseFloat(document.getElementById('fltMinAmt').value);
+  const maxAmt = parseFloat(document.getElementById('fltMaxAmt').value);
+  const q = (document.getElementById('txSearch').value || '').trim().toLowerCase();
+  const fromDate = document.getElementById('fltFromDate').value;
+  const toDate = document.getElementById('fltToDate').value;
+  const hasCustomDateRange = !!(fromDate || toDate);
+  const sortBy = document.getElementById('sortBy').value;
+  const searchBox = document.getElementById('txSearch');
+  const searchClear = document.getElementById('txSearchClear');
+  const searchHint = document.getElementById('searchScopeHint');
+  searchBox.classList.toggle('searching-all', !!q);
+  searchClear.classList.toggle('show', !!q);
+  searchHint.classList.toggle('show', !!q || hasCustomDateRange);
+  searchHint.textContent = q && hasCustomDateRange
+    ? 'Searching all fields within the selected dates'
+    : hasCustomDateRange ? 'Showing the selected date range' : 'Searching all dates and fields';
 
-  let list = state.transactions
-  .filter(transactionMatchesPeriod)
-  .slice();
-
-if(amountSortDesc){
-  list.sort((a,b) => Number(b.amount || 0) - Number(a.amount || 0));
-}else{
-  list.sort((a,b) => Number(a.amount || 0) - Number(b.amount || 0));
-}
-
-  /* Apply filters */
-  if (accF) {
-    list = list.filter(t => t.accountId === accF);
-  }
-
-  if (catF) {
-    list = list.filter(t => t.categoryId === catF);
-  }
-
-  if (subF) {
-    list = list.filter(t => t.subcategory === subF);
-  }
-
-  if (typeF) {
-    list = list.filter(t => t.type === typeF);
-  }
-
-  if (!isNaN(minF)) {
-    list = list.filter(t => Number(t.amount||0) >= minF);
-  }
-
-  if (!isNaN(maxF)) {
-    list = list.filter(t => Number(t.amount||0) <= maxF);
-  }
-
-  if (searchF) {
-    list = list.filter(t =>
-      (t.note||'').toLowerCase().includes(searchF) ||
-      (t.item||'').toLowerCase().includes(searchF) ||
-      (t.shop||'').toLowerCase().includes(searchF)
-    );
-  }
-
-  updateClearFiltersVisibility();
-
-  /* ==========================================
-     CALCULATE FILTERED TOTALS
-  ========================================== */
-  let filteredCredit = 0;
-  let filteredDebit = 0;
-
-  list.forEach(t => {
-    const amount = Number(t.amount) || 0;
-
-    if (t.type === 'credit') {
-      filteredCredit += amount;
-    } else if (t.type === 'debit') {
-      filteredDebit += amount;
-    }
+  // A search is global across every date; clearing it restores the selected
+  // period (Today by default). A custom From/To range also overrides the chips.
+  let list = state.transactions.slice();
+  if (!q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
+  if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
+  if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+  if (accF) list = list.filter(t=>t.accountId===accF);
+  if (catF) list = list.filter(t=>t.categoryId===catF);
+  if (subF) list = list.filter(t=>t.subcategory===subF);
+  if (typeF) list = list.filter(t=>t.type===typeF);
+  if (!isNaN(minAmt)) list = list.filter(t=>Number(t.amount)>=minAmt);
+  if (!isNaN(maxAmt)) list = list.filter(t=>Number(t.amount)<=maxAmt);
+  if (q) list = list.filter(t => {
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const acc = state.accounts.find(a=>a.id===t.accountId);
+    return [
+      t.note, t.itemName, t.shop, t.subcategory, t.date, t.time,
+      t.amount, t.type, cat && cat.name, acc && accountLabel(acc)
+    ].some(value => String(value || '').toLowerCase().includes(q));
   });
 
-  const filteredBalance = filteredCredit - filteredDebit;
+  const visibleCredit = list.reduce((sum,t)=>sum + (t.type==='credit' ? Number(t.amount)||0 : 0), 0);
+  const visibleDebit = list.reduce((sum,t)=>sum + (t.type==='debit' ? Number(t.amount)||0 : 0), 0);
+  document.getElementById('txVisibleSummary').innerHTML =
+    `Count: <span class="mono">${list.length}</span> · ` +
+    `<span class="credit">Credit: <span class="mono">${inr(visibleCredit)}</span></span> · ` +
+    `<span class="debit">Debit: <span class="mono">${inr(visibleDebit)}</span></span>`;
 
-  /* ==========================================
-     SHOW FILTERED SUMMARY
-  ========================================== */
-  const summary = document.getElementById('filteredSummary');
+  list.sort((a,b)=>{
+    let cmp;
+    if (sortBy === 'amount') cmp = Number(a.amount) - Number(b.amount);
+    else cmp = (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'');
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
 
-  summary.innerHTML = `
-    <div class="summary-title">Filtered total</div>
-
-    <div class="summary-values">
-
-      <span class="sum-credit">
-        ▲ In ${inr(filteredCredit)}
-      </span>
-
-      <span class="sum-debit">
-        ▼ Out ${inr(filteredDebit)}
-      </span>
-
-      <span class="sum-balance">
-        Balance ${inr(filteredBalance)}
-      </span>
-
-      <span class="sum-count">
-        ${list.length} ${list.length === 1 ? 'entry' : 'entries'}
-      </span>
-
-    </div>
-  `;
-
-  /* ==========================================
-     TRANSACTION LIST
-  ========================================== */
   const wrap = document.getElementById('txList');
-
   if (!list.length) {
-    wrap.innerHTML =
-      '<div class="empty-note">No transactions match these filters.</div>';
+    wrap.innerHTML = q
+      ? '<div class="empty-note">No matching records found across all dates.</div>'
+      : '<div class="empty-note">No transactions in this view. Tap + to add one, or adjust filters.</div>';
     return;
   }
-
-  wrap.innerHTML = list.map(t => {
-
-    const cat = state.categories.find(
-      c => c.id === t.categoryId
-    );
-
-    const acc = state.accounts.find(
-      a => a.id === t.accountId
-    );
-
-    const icon = t.type === 'credit' ? '↓' : '↑';
-
-    return `
-      <div class="tx-row ${t.type}"
-           onclick="openTxModal('${t.id}')">
-
-        <div class="tx-icon">${icon}</div>
-
-        <div class="tx-mid">
-
-          <div class="tx-cat">
-            ${escapeHtml(cat ? cat.name : 'Uncategorised')}
-            ${t.subcategory
-              ? ' · ' + escapeHtml(t.subcategory)
-              : ''}
-          </div>
-
-          <div class="tx-sub">
-            ${escapeHtml(
-              acc ? accountLabel(acc) : '—'
-            )}
-          </div>
-
-          ${(t.item || t.shop) ? `
-          <div class="tx-itemshop">
-            ${t.item ? '🛒 ' + escapeHtml(t.item) : ''}
-            ${(t.item && t.shop) ? ' · ' : ''}
-            ${t.shop ? '🏪 ' + escapeHtml(t.shop) : ''}
-          </div>` : ''}
-
-          <div class="tx-meta">
-            ${formatDate(t.date)}
-            ${t.time ? ' · ' + t.time : ''}
-            ${t.note
-              ? ' · ' + escapeHtml(t.note)
-              : ''}
-          </div>
-
-          ${formatRate(t) ? `<div class="tx-rate">${formatRate(t)}</div>` : ''}
-
-        </div>
-
-        <div class="tx-amt ${t.type}">
-          ${t.type === 'debit' ? '-' : '+'}${inr(t.amount)}
-        </div>
-
+  wrap.innerHTML = list.map(t=>{
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const acc = state.accounts.find(a=>a.id===t.accountId);
+    const icon = t.type==='credit' ? '↓' : '↑';
+    const itemBits = [];
+    if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
+    if (t.shop) itemBits.push(escapeHtml(t.shop));
+    const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
+    return `<div class="tx-row ${t.type}" onclick="openTxModal('${t.id}')">
+      <div class="tx-icon">${icon}</div>
+      <div class="tx-mid">
+        <div class="tx-cat">${escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
+        <div class="tx-sub">${escapeHtml(acc?accountLabel(acc):'—')}</div>
+        <div class="tx-meta">${formatDate(t.date)}${t.time ? ' · '+t.time : ''}${t.note ? ' · '+escapeHtml(t.note) : ''}</div>
+        ${itemLine}
       </div>
-    `;
+      <div class="tx-amt ${t.type}">${t.type==='debit'?'-':'+'}${inr(t.amount)}</div>
+    </div>`;
   }).join('');
 }
 
 function renderAccounts(){
   const wrap = document.getElementById('accountsList');
   if (!state.accounts.length) { wrap.innerHTML = '<div class="empty-note">No accounts yet. Add your bank accounts, credit cards, or UPI IDs.</div>'; return; }
-  wrap.innerHTML = state.accounts.map(a=>`
+  wrap.innerHTML = state.accounts.slice().sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`
     <div class="list-row">
       <div class="list-row-top">
         <div>
@@ -1422,7 +1449,7 @@ function renderAccounts(){
 function renderCategories(){
   const wrap = document.getElementById('categoriesList');
   if (!state.categories.length) { wrap.innerHTML = '<div class="empty-note">No categories yet.</div>'; return; }
-  wrap.innerHTML = state.categories.map(c=>`
+  wrap.innerHTML = state.categories.slice().sort((a,b)=>alphaCompare(a.name,b.name)).map(c=>`
     <div class="list-row">
       <div class="list-row-top">
         <div class="list-row-name">${escapeHtml(c.name)}</div>
@@ -1431,7 +1458,7 @@ function renderCategories(){
         </div>
       </div>
       <div class="subchips">
-        ${(c.subs||[]).map(s=>`<span class="chip">${escapeHtml(s)}<button onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
+        ${(c.subs||[]).slice().sort(alphaCompare).map(s=>`<span class="chip">${escapeHtml(s)}<button onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
       </div>
       <div class="add-chip-inline">
         <input placeholder="Add sub-category" id="newsub-${c.id}">
@@ -1440,219 +1467,182 @@ function renderCategories(){
     </div>`).join('');
 }
 
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
+function alphaCompare(a,b){ return String(a||'').localeCompare(String(b||''), undefined, {sensitivity:'base',numeric:true}); }
+function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+
 /* =========================================================================
-   INSIGHTS / ANALYSIS
+   INSIGHTS — pie chart, 3-mo vs 6-mo averages, price tracker
 ========================================================================= */
-let insightsView = 'spending';
-let insightsPeriod = 'month';
+const PIE_COLORS = ['#A9862F','#2E6B4F','#A63A3A','#4A5878','#1C2A44','#B7883D','#5B8C74','#8C4A4A','#6E7FA6','#C9A24A'];
 
-function setInsightsView(view){
-  insightsView = view;
-  document.getElementById('innerTabSpending').classList.toggle('on', view==='spending');
-  document.getElementById('innerTabPrices').classList.toggle('on', view==='prices');
-  document.getElementById('insightsSpendingView').style.display = view==='spending' ? 'block' : 'none';
-  document.getElementById('insightsPricesView').style.display = view==='prices' ? 'block' : 'none';
-  if (view==='spending') renderInsights(); else renderPriceTracker();
-}
-
-function setInsightsPeriod(period){
-  insightsPeriod = period;
-  document.querySelectorAll('#insightsSpendingView .period-btn').forEach(btn=>{
-    btn.classList.toggle('active', btn.dataset.iperiod === period);
-  });
+function setInsightPeriod(p){
+  insightPeriod = p;
+  document.querySelectorAll('#insightChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
   renderInsights();
 }
 
-function txMatchesInsightsPeriod(t){
-  if (insightsPeriod === 'all') return true;
-  if (!t.date) return false;
-  const txDate = new Date(t.date + 'T00:00:00');
-  const today = new Date(); today.setHours(0,0,0,0);
-  if (insightsPeriod === 'week') {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    return txDate >= startOfWeek && txDate <= today;
-  }
-  if (insightsPeriod === 'month') {
-    return txDate.getMonth() === today.getMonth() && txDate.getFullYear() === today.getFullYear();
-  }
-  return true;
+function insightRangeStart(){
+  if (insightPeriod === 'month') return startOfMonthStr();
+  if (insightPeriod === '3m') return monthsAgoStr(3);
+  if (insightPeriod === '6m') return monthsAgoStr(6);
+  return null; // all time
 }
 
 function renderInsights(){
-  const wrap = document.getElementById('insightsContent');
-  if (!wrap) return;
-  const list = state.transactions.filter(txMatchesInsightsPeriod);
-
-  if (!list.length) {
-    wrap.innerHTML = '<div class="empty-note">No transactions in this period yet.</div>';
-    return;
-  }
-
-  let credit=0, debit=0;
-  list.forEach(t=>{ if (t.type==='credit') credit+=Number(t.amount)||0; else debit+=Number(t.amount)||0; });
-
-  /* Category breakdown (debit only) */
-  const catTotals = {};
-  list.filter(t=>t.type==='debit').forEach(t=>{
-    const cat = state.categories.find(c=>c.id===t.categoryId);
-    const name = cat ? cat.name : 'Uncategorised';
-    catTotals[name] = (catTotals[name]||0) + (Number(t.amount)||0);
-  });
-  const catEntries = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
-  const maxCat = catEntries.length ? catEntries[0][1] : 0;
-
-  /* Top items (debit only, with item name) */
-  const itemTotals = {};
-  list.filter(t=>t.type==='debit' && t.item).forEach(t=>{
-    itemTotals[t.item] = (itemTotals[t.item]||0) + (Number(t.amount)||0);
-  });
-  const itemEntries = Object.entries(itemTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const maxItem = itemEntries.length ? itemEntries[0][1] : 0;
-
-  /* Monthly trend — last 6 months across ALL transactions (not just filtered period) */
-  const monthBuckets = [];
-  const now = new Date();
-  for (let i=5;i>=0;i--){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    monthBuckets.push({key: d.getFullYear()+'-'+d.getMonth(), label: d.toLocaleDateString('en-IN',{month:'short'}), credit:0, debit:0});
-  }
-  state.transactions.forEach(t=>{
-    if (!t.date) return;
-    const d = new Date(t.date+'T00:00:00');
-    const key = d.getFullYear()+'-'+d.getMonth();
-    const bucket = monthBuckets.find(b=>b.key===key);
-    if (bucket) {
-      if (t.type==='credit') bucket.credit += Number(t.amount)||0;
-      else bucket.debit += Number(t.amount)||0;
-    }
-  });
-  const maxMonthVal = Math.max(1, ...monthBuckets.map(b=>Math.max(b.credit,b.debit)));
-
-  const days = insightsPeriod==='week' ? 7 : insightsPeriod==='month' ? new Date().getDate() : Math.max(1, Math.round((Date.now() - new Date(Math.min(...list.map(t=>new Date(t.date+'T00:00:00').getTime()))))/86400000)+1);
-  const avgPerDay = debit / Math.max(1, days);
-
-  wrap.innerHTML = `
-    <div class="insight-stat-row">
-      <div class="insight-stat"><div class="val" style="color:var(--credit);">${inr(credit)}</div><div class="lbl">In</div></div>
-      <div class="insight-stat"><div class="val" style="color:var(--debit);">${inr(debit)}</div><div class="lbl">Out</div></div>
-      <div class="insight-stat"><div class="val">${inr(avgPerDay)}</div><div class="lbl">Avg/day</div></div>
-    </div>
-
-    <div class="insight-card">
-      <h3>Spend by category</h3>
-      ${catEntries.length ? catEntries.map(([name,amt])=>`
-        <div class="bar-row">
-          <div class="bar-row-top"><span class="bname">${escapeHtml(name)}</span><span class="mono">${inr(amt)}</span></div>
-          <div class="bar-track"><div class="bar-fill" style="width:${maxCat?Math.round(amt/maxCat*100):0}%;"></div></div>
-        </div>
-      `).join('') : '<div class="empty-note">No spending yet.</div>'}
-    </div>
-
-    <div class="insight-card">
-      <h3>Top items</h3>
-      ${itemEntries.length ? itemEntries.map(([name,amt])=>`
-        <div class="bar-row">
-          <div class="bar-row-top"><span class="bname">🛒 ${escapeHtml(name)}</span><span class="mono">${inr(amt)}</span></div>
-          <div class="bar-track"><div class="bar-fill" style="width:${maxItem?Math.round(amt/maxItem*100):0}%;"></div></div>
-        </div>
-      `).join('') : '<div class="empty-note">Add item names to transactions to see this.</div>'}
-    </div>
-
-    <div class="insight-card">
-      <h3>Last 6 months</h3>
-      ${monthBuckets.map(b=>`
-        <div class="trend-row">
-          <span class="mlabel">${b.label}</span>
-          <div class="tbars">
-            <div class="tbar-track"><div class="tbar-fill credit" style="width:${Math.round(b.credit/maxMonthVal*100)}%;"></div></div>
-            <div class="tbar-track"><div class="tbar-fill debit" style="width:${Math.round(b.debit/maxMonthVal*100)}%;"></div></div>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  renderPieChart();
+  renderAvgTable();
+  populatePriceItemOptions();
+  renderPriceTracker();
 }
 
-/* =========================================================================
-   PRICE TRACKER — same item across shops
-========================================================================= */
-function renderPriceTracker(){
-  const wrap = document.getElementById('priceTrackerContent');
-  if (!wrap) return;
-  const searchEl = document.getElementById('priceSearchInput');
-  const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
-
-  const withItems = state.transactions.filter(t=>t.type==='debit' && t.item && t.item.trim());
-  const byItem = {};
-  withItems.forEach(t=>{
-    const key = t.item.trim().toLowerCase();
-    if (!byItem[key]) byItem[key] = {label: t.item.trim(), entries: []};
-    byItem[key].entries.push(t);
+function renderPieChart(){
+  const start = insightRangeStart();
+  const debits = state.transactions.filter(t => t.type==='debit' && (!start || t.date >= start));
+  const byCat = {};
+  debits.forEach(t=>{
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const name = cat ? cat.name : 'Uncategorised';
+    byCat[name] = (byCat[name]||0) + Number(t.amount);
   });
+  const labels = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  const values = labels.map(l=>byCat[l]);
+  const colors = labels.map((_,i)=>PIE_COLORS[i % PIE_COLORS.length]);
 
-  let itemKeys = Object.keys(byItem);
-  if (search) itemKeys = itemKeys.filter(k=>k.includes(search));
-  itemKeys.sort((a,b)=>byItem[a].label.localeCompare(byItem[b].label));
-
-  if (!itemKeys.length) {
-    wrap.innerHTML = '<div class="empty-note">No priced items yet. Add an Item name (and optionally Shop + Quantity/Unit) when logging an expense to start tracking prices here.</div>';
+  const canvas = document.getElementById('pieChart');
+  const legend = document.getElementById('pieLegend');
+  if (!labels.length) {
+    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    legend.innerHTML = '<div class="empty-note">No spending in this period yet.</div>';
     return;
   }
+  if (pieChartInstance) pieChartInstance.destroy();
+  pieChartInstance = new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#FFFDF8' }] },
+    options: { plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => `${c.label}: ${inr(c.raw)}` } } }, cutout: '62%' }
+  });
+  const total = values.reduce((a,b)=>a+b,0);
+  legend.innerHTML = labels.map((l,i)=>`
+    <div class="legend-row">
+      <span class="legend-swatch" style="background:${colors[i]}"></span>
+      <span class="legend-name">${escapeHtml(l)}</span>
+      <span class="legend-amt">${inr(byCat[l])} · ${total?Math.round(byCat[l]/total*100):0}%</span>
+    </div>`).join('');
+}
 
-  wrap.innerHTML = itemKeys.map(key=>{
-    const item = byItem[key];
-    // group by shop, using the most recent entry's rate per shop, and an average
-    const byShop = {};
-    item.entries.forEach(t=>{
-      const shopName = (t.shop && t.shop.trim()) || 'Unknown shop';
-      if (!byShop[shopName]) byShop[shopName] = [];
-      byShop[shopName].push(t);
-    });
+function renderAvgTable(){
+  const start3 = monthsAgoStr(3), start6 = monthsAgoStr(6);
+  const body = document.getElementById('avgTableBody');
+  const rows = state.categories.map(c=>{
+    const tx3 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start3);
+    const tx6 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start6);
+    const sum3 = tx3.reduce((s,t)=>s+Number(t.amount),0);
+    const sum6 = tx6.reduce((s,t)=>s+Number(t.amount),0);
+    const avg3 = sum3 / 3;
+    const avg6 = sum6 / 6;
+    return {name:c.name, avg3, avg6, hasData: tx6.length>0};
+  }).filter(r=>r.hasData);
 
-    const shopRows = Object.entries(byShop).map(([shopName, txs])=>{
-      txs.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-      const latest = txs[0];
-      const rate = computeRate(latest);
-      const avgRate = (()=>{
-        const rates = txs.map(computeRate).filter(r=>r!=null);
-        if (!rates.length) return null;
-        return rates.reduce((s,r)=>s+r,0)/rates.length;
-      })();
-      const displayRate = rate!=null ? rate : (Number(latest.amount)||0);
-      const unitLabel = rate!=null ? (latest.unit||'unit') : '';
-      return {shopName, latest, rate: displayRate, unitLabel, avgRate, count: txs.length};
-    });
-
-    const pricedRows = shopRows.filter(r=>r.rate!=null);
-    const cheapest = pricedRows.length ? pricedRows.reduce((min,r)=> r.rate<min.rate ? r : min, pricedRows[0]) : null;
-    shopRows.sort((a,b)=>(a.rate||0)-(b.rate||0));
-
-    return `
-      <div class="item-price-card">
-        <div class="item-price-head">
-          <span class="iname">🛒 ${escapeHtml(item.label)}</span>
-          ${cheapest ? `<span class="ibest">Best: ${escapeHtml(cheapest.shopName)}</span>` : ''}
-        </div>
-        ${shopRows.map(r=>`
-          <div class="shop-row ${cheapest && r.shopName===cheapest.shopName ? 'cheapest' : ''}">
-            <span class="sname">${escapeHtml(r.shopName)}<span class="sdate">${formatDate(r.latest.date)}${r.count>1 ? ' · '+r.count+' purchases' : ''}</span></span>
-            <span class="srate">${r.unitLabel ? inr(r.rate)+'/'+escapeHtml(r.unitLabel) : inr(r.rate)}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--ink-soft);padding:16px 0;">Not enough history yet — averages will appear after a few months of entries.</td></tr>';
+    return;
+  }
+  rows.sort((a,b)=>b.avg3-a.avg3);
+  body.innerHTML = rows.map(r=>{
+    let trend = '<span class="trend-flat">— flat</span>';
+    if (r.avg6 > 0) {
+      const diffPct = ((r.avg3 - r.avg6) / r.avg6) * 100;
+      if (diffPct > 8) trend = `<span class="trend-up">↑ rising ${Math.round(diffPct)}%</span>`;
+      else if (diffPct < -8) trend = `<span class="trend-down">↓ falling ${Math.round(Math.abs(diffPct))}%</span>`;
+    }
+    return `<tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td class="mono">${inr(r.avg3)}</td>
+      <td class="mono">${inr(r.avg6)}</td>
+      <td>${trend}</td>
+    </tr>`;
   }).join('');
 }
 
-function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
-function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+/* ---- Item & shop datalists (autocomplete for consistent naming) ---- */
+function populateItemShopDatalists(){
+  const items = [...new Set(state.transactions.map(t=>t.itemName).filter(Boolean))].sort(alphaCompare);
+  const shops = [...new Set(state.transactions.map(t=>t.shop).filter(Boolean))].sort(alphaCompare);
+  const itemDL = document.getElementById('itemNameOptions');
+  const shopDL = document.getElementById('shopOptions');
+  if (itemDL) itemDL.innerHTML = items.map(i=>`<option value="${escapeHtml(i)}">`).join('');
+  if (shopDL) shopDL.innerHTML = shops.map(s=>`<option value="${escapeHtml(s)}">`).join('');
+}
+
+function populatePriceItemOptions(){
+  const sel = document.getElementById('priceItemSelect');
+  if (!sel) return;
+  const cur = sel.value;
+  const items = [...new Set(state.transactions.map(t=>t.itemName).filter(Boolean))].sort(alphaCompare);
+  sel.innerHTML = '<option value="">Select an item you\'ve tagged…</option>' + items.map(i=>`<option value="${escapeHtml(i)}">${escapeHtml(i)}</option>`).join('');
+  if (items.includes(cur)) sel.value = cur;
+}
+
+function renderPriceTracker(){
+  const sel = document.getElementById('priceItemSelect');
+  const body = document.getElementById('priceTrackerBody');
+  if (!sel || !sel.value) {
+    body.innerHTML = '<div class="empty-note">Tag an item name (and optionally a shop) when logging a purchase to start comparing prices here.</div>';
+    return;
+  }
+  const itemName = sel.value;
+  const norm = s => (s||'').trim().toLowerCase();
+  const purchases = state.transactions
+    .filter(t => t.type==='debit' && norm(t.itemName) === norm(itemName) && t.qty)
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  if (!purchases.length) {
+    body.innerHTML = '<div class="empty-note">No purchases with quantity logged for this item yet.</div>';
+    return;
+  }
+
+  const rows = purchases.map(t=>{
+    const rate = Number(t.amount) / Number(t.qty);
+    return `<div class="price-row">
+      <div>
+        <div class="pr-shop">${t.shop ? escapeHtml(t.shop) : '<span style="color:var(--ink-soft);font-weight:400;">Shop not noted</span>'}</div>
+        <div class="pr-meta">${formatDate(t.date)} · ${t.qty}${t.unit?' '+t.unit:''} for ${inr(t.amount)}</div>
+      </div>
+      <div class="pr-rate">${inr(rate)}${t.unit?'/'+t.unit:''}</div>
+    </div>`;
+  }).join('');
+
+  // Shop rollup — average unit price per shop, cheapest first; blank shop grouped as "Unspecified"
+  const byShop = {};
+  purchases.forEach(t=>{
+    const key = t.shop && t.shop.trim() ? t.shop.trim() : 'Unspecified';
+    const rate = Number(t.amount) / Number(t.qty);
+    if (!byShop[key]) byShop[key] = {sum:0, n:0};
+    byShop[key].sum += rate; byShop[key].n += 1;
+  });
+  const unit = purchases[0].unit || '';
+  const ranked = Object.keys(byShop).map(k=>({shop:k, avg: byShop[k].sum/byShop[k].n})).sort((a,b)=>a.avg-b.avg);
+  const rankHtml = ranked.map((r,i)=>`
+    <div class="shop-rank">
+      <div class="shop-rank-row"><span class="rank-badge">${i+1}</span>${escapeHtml(r.shop)}</div>
+      <div class="pr-rate">${inr(r.avg)}${unit?'/'+unit:''}</div>
+    </div>`).join('');
+
+  body.innerHTML = `
+    <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Average rate by shop, cheapest first</div>
+    ${rankHtml}
+    <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 4px;">All purchases</div>
+    ${rows}
+  `;
+}
 
 /* =========================================================================
    TRANSACTION MODAL LOGIC
 ========================================================================= */
 let txType = 'debit';
+let txQuickAddContext = null;
 function setTxType(t){
   txType = t;
   document.getElementById('segDebit').classList.toggle('on', t==='debit');
@@ -1665,14 +1655,66 @@ function populateCategoryOptions(selectedCatId){
   const filteredCategories = state.categories.filter(c => {
     const isIncomeCat = c.name.toLowerCase() === 'income';
     return txType === 'credit' ? isIncomeCat : !isIncomeCat;
-  });
+  }).sort((a,b)=>alphaCompare(a.name,b.name));
 
-  catSel.innerHTML = filteredCategories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('') || '<option value="">No matching category</option>';
+  const options = filteredCategories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  catSel.innerHTML = options || '<option value="">No matching category</option>';
+  if (txType === 'debit') catSel.insertAdjacentHTML('beforeend','<option value="__add__">＋ Add new category…</option>');
   
   if (selectedCatId) {
     catSel.value = selectedCatId;
   }
+  catSel.dataset.previous = catSel.value;
   populateSubcatOptions();
+}
+
+function populateTxAccountOptions(selectedId){
+  const sel = document.getElementById('txAccount');
+  const options = state.accounts.slice().sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+  sel.innerHTML = (options || '<option value="">Select account</option>') + '<option value="__add__">＋ Add new account…</option>';
+  if (selectedId && state.accounts.some(a=>a.id===selectedId)) sel.value = selectedId;
+  sel.dataset.previous = sel.value;
+}
+function onTxAccountChange(){
+  const sel = document.getElementById('txAccount');
+  if (sel.value !== '__add__') { sel.dataset.previous = sel.value; return; }
+  sel.value = sel.dataset.previous || (state.accounts[0] && state.accounts[0].id) || '';
+  txQuickAddContext = 'account';
+  openAccountModal('', true);
+}
+function onTxCategoryChange(){
+  const sel = document.getElementById('txCategory');
+  if (sel.value === '__add__') {
+    sel.value = sel.dataset.previous || (state.categories[0] && state.categories[0].id) || '';
+    txQuickAddContext = 'category';
+    openCategoryModal('', true);
+    return;
+  }
+  sel.dataset.previous = sel.value;
+  populateSubcatOptions();
+  refreshItemCategoryHint(false);
+}
+function onTxSubcategoryChange(){
+  const sel = document.getElementById('txSubcategory');
+  if (sel.value !== '__add__') {
+    sel.dataset.previous = sel.value;
+    refreshItemCategoryHint(false);
+    return;
+  }
+  const previous = sel.dataset.previous || '';
+  const catId = document.getElementById('txCategory').value;
+  const cat = state.categories.find(c=>c.id===catId);
+  const name = prompt('Enter the new sub-category name:');
+  if (!cat || !name || !name.trim()) {
+    sel.value = previous;
+    return;
+  }
+  const cleanName = name.trim();
+  cat.subs = cat.subs || [];
+  if (!cat.subs.some(s=>s.toLowerCase()===cleanName.toLowerCase())) cat.subs.push(cleanName);
+  cloudSaveMeta();
+  populateSubcatOptions(cleanName);
+  refreshItemCategoryHint(false);
 }
 
 function openTxModal(id){
@@ -1682,8 +1724,9 @@ function openTxModal(id){
   document.getElementById('txModalTitle').textContent = id ? 'Edit transaction' : 'Add transaction';
 
   const accSel = document.getElementById('txAccount');
-  accSel.innerHTML = state.accounts.map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('') || '<option value="">Add an account first</option>';
+  populateTxAccountOptions();
 
+  let hasItemDetails = false;
   if (id) {
     const t = state.transactions.find(x=>x.id===id);
     if (t) {
@@ -1695,95 +1738,187 @@ function openTxModal(id){
       populateCategoryOptions(t.categoryId);
       document.getElementById('txSubcategory').value = t.subcategory || '';
       document.getElementById('txRepeat').value = t.repeat || 'none';
-      document.getElementById('txItem').value = t.item || '';
-      document.getElementById('txShop').value = t.shop || '';
-      document.getElementById('txQuantity').value = t.quantity || '';
-      document.getElementById('txUnit').value = t.unit || '';
       document.getElementById('txNote').value = t.note || '';
-      updateRatePreview();
+      document.getElementById('txItemName').value = t.itemName || '';
+      document.getElementById('txQty').value = t.qty || '';
+      document.getElementById('txUnit').value = t.unit || '';
+      document.getElementById('txShop').value = t.shop || '';
+      hasItemDetails = !!(t.itemName || t.qty || t.shop);
     }
   } else {
     setTxType('debit');
     document.getElementById('txAmount').value = '';
     const now = new Date();
-    document.getElementById('txDate').value = now.toISOString().slice(0,10);
+    document.getElementById('txDate').value = localDateStr(now);
     document.getElementById('txTime').value = now.toTimeString().slice(0,5);
     populateCategoryOptions();
     document.getElementById('txRepeat').value = 'none';
-    document.getElementById('txItem').value = '';
-    document.getElementById('txShop').value = '';
-    document.getElementById('txQuantity').value = '';
-    document.getElementById('txUnit').value = '';
     document.getElementById('txNote').value = '';
-    updateRatePreview();
+    document.getElementById('txItemName').value = '';
+    document.getElementById('txQty').value = '';
+    document.getElementById('txUnit').value = '';
+    document.getElementById('txShop').value = '';
   }
+  setItemFieldsVisible(hasItemDetails);
+  updateUnitHint();
+  refreshItemCategoryHint(false);
   openModal('txOverlay');
 }
 
+function toggleItemFields(){
+  const box = document.getElementById('itemFields');
+  setItemFieldsVisible(!box.classList.contains('show'));
+}
+function setItemFieldsVisible(show){
+  document.getElementById('itemFields').classList.toggle('show', show);
+  document.getElementById('itemToggleIcon').textContent = show ? '▴' : '▾';
+}
+function updateUnitHint(){
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  const qty = parseFloat(document.getElementById('txQty').value);
+  const unit = document.getElementById('txUnit').value;
+  const hint = document.getElementById('unitHint');
+  if (amount > 0 && qty > 0) {
+    hint.style.display = 'block';
+    hint.textContent = `≈ ${inr(amount/qty)}${unit ? '/'+unit : ' per unit'}`;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+function normalizeItemName(value){
+  return String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function getItemCategoryProfile(itemName, excludeTxId=''){
+  const key = normalizeItemName(itemName);
+  if (!key) return null;
+  const groups = new Map();
+  state.transactions.forEach(t=>{
+    if (t.id===excludeTxId || normalizeItemName(t.itemName)!==key) return;
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    if (!cat) return;
+    const subcategory = t.subcategory || '';
+    const pairKey = `${t.categoryId}\u0000${subcategory}`;
+    const stamp = `${t.date||''}T${t.time||''}`;
+    const group = groups.get(pairKey) || {categoryId:t.categoryId,subcategory,count:0,last:''};
+    group.count += 1;
+    if (stamp > group.last) group.last = stamp;
+    groups.set(pairKey, group);
+  });
+  const ranked = [...groups.values()].sort((a,b)=>b.count-a.count || b.last.localeCompare(a.last));
+  if (!ranked.length) return null;
+  const profile = ranked[0];
+  const cat = state.categories.find(c=>c.id===profile.categoryId);
+  return {...profile, categoryName:cat ? cat.name : 'Uncategorised'};
+}
+function itemCategoryPath(categoryId, subcategory){
+  const cat = state.categories.find(c=>c.id===categoryId);
+  return `${cat ? cat.name : 'Uncategorised'}${subcategory ? ' → '+subcategory : ''}`;
+}
+function refreshItemCategoryHint(autoApply){
+  const hint = document.getElementById('itemCategoryHint');
+  if (!hint) return;
+  const itemName = document.getElementById('txItemName').value;
+  const editingId = document.getElementById('txId').value;
+  const profile = getItemCategoryProfile(itemName, editingId);
+  if (!profile) {
+    hint.classList.remove('show');
+    hint.textContent = '';
+    return;
+  }
+  const catSel = document.getElementById('txCategory');
+  const hasUsualCategory = [...catSel.options].some(o=>o.value===profile.categoryId);
+  if (autoApply && hasUsualCategory) {
+    catSel.value = profile.categoryId;
+    catSel.dataset.previous = profile.categoryId;
+    populateSubcatOptions(profile.subcategory);
+  }
+  const currentCat = catSel.value;
+  const currentSub = document.getElementById('txSubcategory').value;
+  const matches = currentCat===profile.categoryId && currentSub===profile.subcategory;
+  hint.textContent = matches
+    ? `Usual category selected: ${itemCategoryPath(profile.categoryId,profile.subcategory)}.`
+    : `Usual category: ${itemCategoryPath(profile.categoryId,profile.subcategory)}. A confirmation will be required to save elsewhere.`;
+  hint.classList.add('show');
+}
+function applyItemCategorySuggestion(){
+  refreshItemCategoryHint(true);
+}
+document.getElementById('txAmount') && document.getElementById('txAmount').addEventListener('input', updateUnitHint);
+
 function cloneCurrentTx(){
+  const useCurrentDateTime = confirm(
+    "Use today's date and current time for this clone?\n\n" +
+    'OK = Today and now\nCancel = Keep the original date and time'
+  );
   document.getElementById('txId').value = '';
   document.getElementById('txDeleteBtn').style.display = 'none';
   document.getElementById('txCloneBtn').style.display = 'none';
   document.getElementById('txModalTitle').textContent = 'Clone transaction (New item)';
-  document.getElementById('txAmount').value = '';
-  document.getElementById('txNote').value = '';
+  if (useCurrentDateTime) {
+    const now = new Date();
+    document.getElementById('txDate').value = localDateStr(now);
+    document.getElementById('txTime').value = now.toTimeString().slice(0,5);
+  }
+  // Keep all copied details. The user can adjust the amount, note, account,
+  // category, item, or shop before saving the new transaction.
   document.getElementById('txAmount').focus();
 }
 
-function updateRatePreview(){
-  const amount = parseFloat(document.getElementById('txAmount').value);
-  const quantity = parseFloat(document.getElementById('txQuantity').value);
-  const unit = document.getElementById('txUnit').value;
-  const field = document.getElementById('ratePreviewField');
-  const out = document.getElementById('ratePreview');
-  if (amount && quantity && quantity>0) {
-    out.textContent = inr(amount/quantity) + '/' + (unit || 'unit');
-    field.style.display = 'block';
-  } else {
-    field.style.display = 'none';
-  }
-}
-
-function populateSubcatOptions(){
+function populateSubcatOptions(selected){
   const catId = document.getElementById('txCategory').value;
   const cat = state.categories.find(c=>c.id===catId);
   const subSel = document.getElementById('txSubcategory');
-  subSel.innerHTML = (cat && cat.subs || []).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('') || '<option value="">—</option>';
+  const options = (cat && cat.subs || []).slice().sort(alphaCompare).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  subSel.innerHTML = (options || '<option value="">—</option>') + (cat ? '<option value="__add__">＋ Add new sub-category…</option>' : '');
+  if (selected && (cat.subs||[]).includes(selected)) subSel.value = selected;
+  subSel.dataset.previous = subSel.value;
 }
 
 function saveTx(){
   const amount = parseFloat(document.getElementById('txAmount').value);
   if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
-  if (!document.getElementById('txAccount').value) { alert('Add an account first (Accounts tab).'); return; }
-  const id = document.getElementById('txId').value || uid();
+  const selectedAccount = document.getElementById('txAccount').value;
+  const selectedCategory = document.getElementById('txCategory').value;
+  if (!selectedAccount || selectedAccount === '__add__') { alert('Select or add an account.'); return; }
+  if (!selectedCategory || selectedCategory === '__add__') { alert('Select or add a category.'); return; }
+  const existingId = document.getElementById('txId').value;
+  const id = existingId || uid();
+  const qtyVal = parseFloat(document.getElementById('txQty').value);
+  const itemName = document.getElementById('txItemName').value.trim();
+  const selectedSubcategory = document.getElementById('txSubcategory').value;
+  const itemProfile = getItemCategoryProfile(itemName, existingId);
+  if (itemProfile && (selectedCategory!==itemProfile.categoryId || selectedSubcategory!==itemProfile.subcategory)) {
+    const usualPath = itemCategoryPath(itemProfile.categoryId,itemProfile.subcategory);
+    const chosenPath = itemCategoryPath(selectedCategory,selectedSubcategory);
+    if (!confirm(`“${itemName}” is normally saved under ${usualPath}.\n\nSave it under ${chosenPath} instead?`)) return;
+  }
   const tx = {
     id,
     type: txType,
     amount,
     date: document.getElementById('txDate').value,
     time: document.getElementById('txTime').value,
-    accountId: document.getElementById('txAccount').value,
-    categoryId: document.getElementById('txCategory').value,
-    subcategory: document.getElementById('txSubcategory').value,
+    accountId: selectedAccount,
+    categoryId: selectedCategory,
+    subcategory: selectedSubcategory,
     repeat: document.getElementById('txRepeat').value,
-    item: document.getElementById('txItem').value.trim(),
-    shop: document.getElementById('txShop').value.trim(),
-    quantity: document.getElementById('txQuantity').value ? parseFloat(document.getElementById('txQuantity').value) : '',
+    note: document.getElementById('txNote').value.trim(),
+    itemName,
+    qty: qtyVal > 0 ? qtyVal : null,
     unit: document.getElementById('txUnit').value,
-    note: document.getElementById('txNote').value.trim()
+    shop: document.getElementById('txShop').value.trim()
   };
 
-  // Always update local state & backup immediately
+  // Always update local state & backup immediately — never lost, even offline
   const idx = state.transactions.findIndex(t=>t.id===id);
   if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
   localSave();
   renderAll();
 
-  // Also sync to cloud if signed in
-  if (currentUser) {
-    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).set(tx);
-  }
-  
+  // Queue the cloud write — flushes now if online+signed in, later otherwise
+  queueOp({kind:'tx-set', id, payload:tx});
+  flushQueue();
+
   closeModal('txOverlay');
 }
 
@@ -1796,16 +1931,16 @@ function deleteCurrentTx(){
   localSave();
   renderAll();
 
-  if (currentUser) {
-    db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
-  }
+  queueOp({kind:'tx-delete', id});
+  flushQueue();
   closeModal('txOverlay');
 }
 
 /* =========================================================================
    ACCOUNT MODAL LOGIC
 ========================================================================= */
-function openAccountModal(id){
+function openAccountModal(id, fromTx=false){
+  if (!fromTx) txQuickAddContext = null;
   document.getElementById('accId').value = id || '';
   document.getElementById('accDeleteBtn').style.display = id ? 'block' : 'none';
   document.getElementById('accModalTitle').textContent = id ? 'Edit account' : 'Add account';
@@ -1834,6 +1969,14 @@ function saveAccount(){
   cloudSaveMeta();
   renderAll();
   closeModal('accOverlay');
+  if (txQuickAddContext === 'account') {
+    populateTxAccountOptions(id);
+    txQuickAddContext = null;
+  }
+}
+function closeAccountModal(){
+  txQuickAddContext = null;
+  closeModal('accOverlay');
 }
 function deleteCurrentAccount(){
   const id = document.getElementById('accId').value;
@@ -1847,7 +1990,8 @@ function deleteCurrentAccount(){
 /* =========================================================================
    CATEGORY MODAL LOGIC
 ========================================================================= */
-function openCategoryModal(id){
+function openCategoryModal(id, fromTx=false){
+  if (!fromTx) txQuickAddContext = null;
   document.getElementById('catId').value = id || '';
   document.getElementById('catDeleteBtn').style.display = id ? 'block' : 'none';
   document.getElementById('catModalTitle').textContent = id ? 'Rename category' : 'Add category';
@@ -1863,6 +2007,14 @@ function saveCategory(){
   else state.categories.push({id, name, subs:[]});
   cloudSaveMeta();
   renderAll();
+  closeModal('catOverlay');
+  if (txQuickAddContext === 'category') {
+    populateCategoryOptions(id);
+    txQuickAddContext = null;
+  }
+}
+function closeCategoryModal(){
+  txQuickAddContext = null;
   closeModal('catOverlay');
 }
 function deleteCurrentCategory(){
@@ -1903,39 +2055,12 @@ function exportData(){
   URL.revokeObjectURL(url);
 }
 
-document.addEventListener('DOMContentLoaded', function(){
-
-  document.getElementById('fltAccount')
-    .addEventListener('change', renderTransactions);
-
-  document.getElementById('fltCategory')
-    .addEventListener('change', renderTransactions);
-
-  document.getElementById('fltSubcategory')
-    .addEventListener('change', renderTransactions);
-
-  document.getElementById('fltType')
-    .addEventListener('change', renderTransactions);
-
-  document.getElementById('fltMinAmount')
-    .addEventListener('input', renderTransactions);
-
-  document.getElementById('fltMaxAmount')
-    .addEventListener('input', renderTransactions);
-
-});
-
-
-</script>
-<script>
+/* ---- PWA: install to home screen, cache shell for fast/offline loads ---- */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('Khata service worker registered'))
-      .catch(err => console.error('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
   });
 }
 </script>
-
 </body>
 </html>
