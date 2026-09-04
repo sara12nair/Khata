@@ -673,7 +673,25 @@ input,select,textarea{font-family:inherit;}
       <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
       <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
       <button class="btn ghost" onclick="closeModal('txOverlay')">Cancel</button>
-      <button class="btn primary" onclick="saveTx()">Save</button>
+      <button class="btn primary" id="txSaveBtn" onclick="saveTx()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ POSSIBLE DUPLICATE WARNING ============ -->
+<div class="overlay" id="duplicateOverlay" style="z-index:70;">
+  <div class="modal">
+    <h3>Possible duplicate transaction</h3>
+    <div class="list-row" style="margin-bottom:12px;">
+      <div class="list-row-name" id="duplicateSummary"></div>
+      <div class="list-row-type" style="margin-top:6px;line-height:1.5;">
+        A matching transaction is already saved. Check it before creating another copy.
+      </div>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn ghost" onclick="viewDuplicateExisting()">View existing</button>
+      <button class="btn ghost" onclick="cancelDuplicateSave()">Cancel</button>
+      <button class="btn primary" onclick="saveDuplicateAnyway()">Save anyway</button>
     </div>
   </div>
 </div>
@@ -1918,6 +1936,9 @@ function onTxSubcategoryChange(){
 }
 
 function openTxModal(id){
+  const saveBtn = document.getElementById('txSaveBtn');
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
   document.getElementById('txId').value = id || '';
   document.getElementById('txDeleteBtn').style.display = id ? 'block' : 'none';
   document.getElementById('txCloneBtn').style.display = id ? 'block' : 'none';
@@ -2045,6 +2066,65 @@ function applyItemCategorySuggestion(){
 }
 document.getElementById('txAmount') && document.getElementById('txAmount').addEventListener('input', updateUnitHint);
 
+let pendingDuplicateTx = null;
+let duplicateExistingId = null;
+
+function duplicateText(value){
+  return String(value || '').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+}
+function sameMoney(a,b){
+  return Math.round((Number(a)||0)*100) === Math.round((Number(b)||0)*100);
+}
+function findPotentialDuplicate(tx, excludeId){
+  return state.transactions.find(existing =>
+    existing.id !== excludeId &&
+    existing.date === tx.date &&
+    existing.type === tx.type &&
+    sameMoney(existing.amount, tx.amount) &&
+    existing.accountId === tx.accountId &&
+    existing.categoryId === tx.categoryId &&
+    duplicateText(existing.subcategory) === duplicateText(tx.subcategory) &&
+    duplicateText(existing.itemName) === duplicateText(tx.itemName) &&
+    duplicateText(existing.shop) === duplicateText(tx.shop) &&
+    duplicateText(existing.note) === duplicateText(tx.note)
+  );
+}
+function showDuplicateWarning(existing, proposed){
+  pendingDuplicateTx = proposed;
+  duplicateExistingId = existing.id;
+  const account = state.accounts.find(a=>a.id===existing.accountId);
+  const category = state.categories.find(c=>c.id===existing.categoryId);
+  const details = [
+    formatDate(existing.date),
+    existing.time || '',
+    existing.type === 'debit' ? 'Debit' : 'Credit',
+    inr(existing.amount),
+    account ? accountLabel(account) : '',
+    category ? category.name : '',
+    existing.itemName || existing.note || ''
+  ].filter(Boolean);
+  document.getElementById('duplicateSummary').textContent = details.join(' · ');
+  openModal('duplicateOverlay');
+}
+function cancelDuplicateSave(){
+  pendingDuplicateTx = null;
+  duplicateExistingId = null;
+  closeModal('duplicateOverlay');
+}
+function viewDuplicateExisting(){
+  const id = duplicateExistingId;
+  cancelDuplicateSave();
+  closeModal('txOverlay');
+  if (id) openTxModal(id);
+}
+function saveDuplicateAnyway(){
+  const tx = pendingDuplicateTx;
+  pendingDuplicateTx = null;
+  duplicateExistingId = null;
+  closeModal('duplicateOverlay');
+  if (tx) commitTx(tx);
+}
+
 function cloneCurrentTx(){
   const useCurrentDateTime = confirm(
     "Use today's date and current time for this clone?\n\n" +
@@ -2075,6 +2155,8 @@ function populateSubcatOptions(selected){
 }
 
 function saveTx(){
+  const saveBtn = document.getElementById('txSaveBtn');
+  if (saveBtn.disabled) return;
   const amount = parseFloat(document.getElementById('txAmount').value);
   if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
   const selectedAccount = document.getElementById('txAccount').value;
@@ -2115,14 +2197,29 @@ function saveTx(){
     schemaVersion: STORAGE_SCHEMA
   };
 
+  const possibleDuplicate = findPotentialDuplicate(tx, existingId);
+  if (possibleDuplicate) {
+    showDuplicateWarning(possibleDuplicate, tx);
+    return;
+  }
+
+  commitTx(tx);
+}
+
+function commitTx(tx){
+  const saveBtn = document.getElementById('txSaveBtn');
+  if (saveBtn.disabled) return;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
   // Always update local state & backup immediately — never lost, even offline
-  const idx = state.transactions.findIndex(t=>t.id===id);
+  const idx = state.transactions.findIndex(t=>t.id===tx.id);
   if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
   localSave();
   renderAll();
 
   // Queue the cloud write — flushes now if online+signed in, later otherwise
-  queueOp({kind:'tx-set', id, payload:tx});
+  queueOp({kind:'tx-set', id:tx.id, payload:tx});
   flushQueue();
 
   closeModal('txOverlay');
