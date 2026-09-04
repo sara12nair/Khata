@@ -734,18 +734,45 @@ const CLOUD_ENABLED = true;
 let db = null, auth = null, currentUser = null;
 let unsubUserDoc = null, unsubTx = null;
 const BIOMETRIC_KEY = 'khata_biometric_lock_v1';
+const STORAGE_SCHEMA = 2;
+const DEVICE_ID_KEY = 'khata_device_id_v1';
+let storageScope = 'offline';
+let flushInFlight = false;
+let metaSnapshotReady = false, txSnapshotReady = false;
+let metaFromCache = true, txFromCache = true;
+let metaHasPendingWrites = false, txHasPendingWrites = false;
+let lastSyncError = '';
 
 firebase.initializeApp(firebaseConfig);
 auth = firebase.auth();
 db = firebase.firestore();
+
+// Firestore's IndexedDB cache protects signed-in entries across refreshes and
+// automatically sends pending writes when a connection returns. Multi-tab
+// mode also keeps two Windows browser tabs from fighting over the cache.
+const firestorePersistenceReady = db.enablePersistence({synchronizeTabs:true})
+  .catch(err => {
+    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+      console.warn('Firestore offline persistence could not be enabled.', err);
+    }
+    // The app still works with its user-scoped local safety copy and queue.
+  });
+
+function getDeviceId(){
+  let value = localStorage.getItem(DEVICE_ID_KEY);
+  if (!value) {
+    value = 'device-' + uid();
+    localStorage.setItem(DEVICE_ID_KEY, value);
+  }
+  return value;
+}
+const DEVICE_ID = getDeviceId();
 
 window.addEventListener('DOMContentLoaded', () => {
   const savedUser = localStorage.getItem('khata_last_user');
   if (savedUser) {
     document.getElementById('authEmail').value = savedUser;
   }
-  // Load local cache immediately so data never flashes empty on refresh
-  localLoad();
 });
 
 /* =========================================================================
@@ -769,6 +796,69 @@ const DEFAULT_CATEGORIES = [
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
+function emptyState(){ return {accounts:[], categories:[], transactions:[]}; }
+
+function scopedKey(base){ return `${base}_v${STORAGE_SCHEMA}:${storageScope}`; }
+function stateStorageKey(){ return scopedKey('khata_state'); }
+function queueStorageKey(){ return scopedKey('khata_sync_queue'); }
+function recurringStorageKey(){ return scopedKey('khata_last_recurring_check'); }
+
+function readJson(key, fallback){
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch(e) {
+    return fallback;
+  }
+}
+
+function activateStorageScope(user){
+  storageScope = user ? `user:${user.uid}` : 'offline';
+
+  if (user) {
+    const claimedKey = 'khata_legacy_claimed_by_uid_v2';
+    const legacyClaimedBy = localStorage.getItem(claimedKey);
+    const destinationStateKey = stateStorageKey();
+
+    // One-time, backward-compatible migration of the state/queue used by the
+    // earlier Khata version. The first authenticated owner safely claims it.
+    if (!localStorage.getItem(destinationStateKey) && !legacyClaimedBy) {
+      const legacyState = localStorage.getItem('khata_state');
+      const legacyQueue = localStorage.getItem('khata_sync_queue');
+      const legacyRecurring = localStorage.getItem('khata_last_recurring_check');
+      if (legacyState) localStorage.setItem(destinationStateKey, legacyState);
+      if (legacyQueue) localStorage.setItem(queueStorageKey(), legacyQueue);
+      if (legacyRecurring) localStorage.setItem(recurringStorageKey(), legacyRecurring);
+      localStorage.setItem(claimedKey, user.uid);
+    }
+
+    // Entries deliberately made in "use on this device only" mode are moved
+    // into the next account that signs in, matching Khata's previous behavior.
+    const offlineQueueKey = `khata_sync_queue_v${STORAGE_SCHEMA}:offline`;
+    const offlineQueue = readJson(offlineQueueKey, []);
+    if (offlineQueue.length) {
+      const userQueue = readJson(queueStorageKey(), []);
+      const combined = [...userQueue, ...offlineQueue].map(normalizeQueueOp);
+      localStorage.setItem(queueStorageKey(), JSON.stringify(coalesceQueue(combined)));
+      localStorage.setItem(offlineQueueKey, '[]');
+    }
+  } else {
+    // Preserve the previous version's on-device data when the owner chooses
+    // offline mode before signing in after this upgrade.
+    const claimedKey = 'khata_legacy_claimed_by_uid_v2';
+    if (!localStorage.getItem(stateStorageKey()) && !localStorage.getItem(claimedKey)) {
+      const legacyState = localStorage.getItem('khata_state');
+      const legacyQueue = localStorage.getItem('khata_sync_queue');
+      const legacyRecurring = localStorage.getItem('khata_last_recurring_check');
+      if (legacyState) localStorage.setItem(stateStorageKey(), legacyState);
+      if (legacyQueue) localStorage.setItem(queueStorageKey(), legacyQueue);
+      if (legacyRecurring) localStorage.setItem(recurringStorageKey(), legacyRecurring);
+    }
+  }
+
+  state = emptyState();
+  localLoad();
+}
 
 /* =========================================================================
    PERSISTENCE — Local-first write queue, flushed to Firestore
@@ -779,27 +869,33 @@ function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN', {max
    by the cloud snapshot.
 ========================================================================= */
 function localSave(){
-  localStorage.setItem('khata_state', JSON.stringify(state));
+  localStorage.setItem(stateStorageKey(), JSON.stringify(state));
 }
 function localLoad(){
-  const raw = localStorage.getItem('khata_state');
+  const raw = localStorage.getItem(stateStorageKey());
   if (raw) {
     try {
       state = JSON.parse(raw);
     } catch(e) {
+      state = emptyState();
       state.categories = DEFAULT_CATEGORIES;
     }
   } else {
+    state = emptyState();
     state.categories = DEFAULT_CATEGORIES;
     localSave();
   }
+  state.accounts = Array.isArray(state.accounts) ? state.accounts : [];
+  state.categories = Array.isArray(state.categories) && state.categories.length ? state.categories : DEFAULT_CATEGORIES;
+  state.transactions = Array.isArray(state.transactions) ? state.transactions : [];
+  applyPendingQueueToState();
   checkRecurringExpenses();
   renderAll();
 }
 
 function checkRecurringExpenses(){
   const todayDateValue = localDateStr();
-  const lastCheck = localStorage.getItem('khata_last_recurring_check');
+  const lastCheck = localStorage.getItem(recurringStorageKey());
   if (lastCheck === todayDateValue) return;
 
   let added = false;
@@ -829,7 +925,11 @@ function checkRecurringExpenses(){
               categoryId: t.categoryId,
               subcategory: t.subcategory,
               repeat: 'none',
-              note: (t.note || '') + ' (Recurring)'
+              note: (t.note || '') + ' (Recurring)',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              updatedByDevice: DEVICE_ID,
+              schemaVersion: STORAGE_SCHEMA
             });
             added = true;
           }
@@ -844,61 +944,136 @@ function checkRecurringExpenses(){
     newTxs.forEach(t => queueOp({kind:'tx-set', id:t.id, payload:t}));
     flushQueue();
   }
-  localStorage.setItem('khata_last_recurring_check', todayDateValue);
+  localStorage.setItem(recurringStorageKey(), todayDateValue);
 }
 
 /* ---- Write queue: survives offline / not-signed-in, flushes later ---- */
+function normalizeQueueOp(op){
+  return {
+    ...op,
+    queueId: op.queueId || uid(),
+    queuedAt: op.queuedAt || Date.now(),
+    deviceId: op.deviceId || DEVICE_ID
+  };
+}
+function coalesceQueue(items){
+  const result = [];
+  items.forEach(raw => {
+    const op = normalizeQueueOp(raw);
+    const sameTarget = candidate => op.kind === 'meta'
+      ? candidate.kind === 'meta'
+      : candidate.kind !== 'meta' && candidate.id === op.id;
+    const oldIndex = result.findIndex(sameTarget);
+    if (oldIndex >= 0) result.splice(oldIndex, 1);
+    result.push(op);
+  });
+  return result;
+}
 function getQueue(){
-  try { return JSON.parse(localStorage.getItem('khata_sync_queue') || '[]'); }
-  catch(e) { return []; }
+  const raw = readJson(queueStorageKey(), []);
+  const normalized = coalesceQueue(raw);
+  // Persist generated queue IDs once so an acknowledged legacy operation can
+  // be removed reliably after its network request completes.
+  if (JSON.stringify(raw) !== JSON.stringify(normalized)) {
+    localStorage.setItem(queueStorageKey(), JSON.stringify(normalized));
+  }
+  return normalized;
 }
 function setQueue(q){
-  localStorage.setItem('khata_sync_queue', JSON.stringify(q));
+  localStorage.setItem(queueStorageKey(), JSON.stringify(q));
   updateQueueIndicator(q.length);
 }
 function queueOp(op){
-  let q = getQueue();
-  if (op.kind === 'meta') {
-    q = q.filter(o => o.kind !== 'meta'); // last-write-wins for meta
-  } else {
-    q = q.filter(o => o.id !== op.id); // later op on same tx supersedes
-  }
-  q.push(op);
+  const q = coalesceQueue([...getQueue(), normalizeQueueOp(op)]);
   setQueue(q);
 }
-function flushQueue(){
+function applyPendingQueueToState(){
   const q = getQueue();
-  updateQueueIndicator(q.length);
-  if (!CLOUD_ENABLED || !currentUser || !navigator.onLine || !q.length) return;
+  const txMap = new Map((state.transactions || []).map(t => [t.id, t]));
+  q.forEach(op => {
+    if (op.kind === 'tx-set') txMap.set(op.id, op.payload);
+    if (op.kind === 'tx-delete') txMap.delete(op.id);
+    if (op.kind === 'meta' && op.payload) {
+      state.accounts = op.payload.accounts || state.accounts;
+      state.categories = op.payload.categories || state.categories;
+    }
+  });
+  state.transactions = [...txMap.values()];
+}
+async function flushQueue(){
+  const batch = getQueue();
+  updateQueueIndicator(batch.length);
+  if (!CLOUD_ENABLED || !currentUser || !navigator.onLine || !batch.length || flushInFlight) return;
+  flushInFlight = true;
+  lastSyncError = '';
   const userRef = db.collection('users').doc(currentUser.uid);
-  const jobs = q.map(op => {
-    if (op.kind === 'tx-set') return userRef.collection('transactions').doc(op.id).set(op.payload);
+  let retryableFailure = false;
+  const jobs = batch.map(op => {
+    if (op.kind === 'tx-set') return userRef.collection('transactions').doc(op.id).set({
+      ...op.payload,
+      serverUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     if (op.kind === 'tx-delete') return userRef.collection('transactions').doc(op.id).delete();
-    if (op.kind === 'meta') return userRef.set({accounts: op.payload.accounts, categories: op.payload.categories}, {merge:true});
+    if (op.kind === 'meta') return userRef.set({
+      accounts: op.payload.accounts,
+      categories: op.payload.categories,
+      schemaVersion: STORAGE_SCHEMA,
+      updatedByDevice: DEVICE_ID,
+      serverUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
     return Promise.resolve();
   });
-  Promise.all(jobs).then(() => {
-    setQueue([]);
-  }).catch(err => {
+  try {
+    await Promise.all(jobs);
+    // Remove only the exact operations acknowledged above. Any newer edit
+    // queued while the request was running is deliberately retained.
+    const acknowledged = new Set(batch.map(op => op.queueId));
+    setQueue(getQueue().filter(op => !acknowledged.has(op.queueId)));
+  } catch(err) {
+    lastSyncError = err && err.message ? err.message : 'Cloud sync failed';
+    retryableFailure = ['unavailable','deadline-exceeded','aborted','resource-exhausted','internal','unknown']
+      .includes(err && err.code);
     console.warn('Sync queue flush failed — will retry when back online.', err);
-  });
+  } finally {
+    flushInFlight = false;
+    updateQueueIndicator(getQueue().length);
+    if (getQueue().length && navigator.onLine && !lastSyncError) setTimeout(flushQueue, 250);
+    else if (getQueue().length && navigator.onLine && retryableFailure) setTimeout(flushQueue, 5000);
+  }
 }
 function updateQueueIndicator(n){
   const pill = document.getElementById('syncPill');
   const txt = document.getElementById('syncText');
   if (!pill) return;
-  if (n > 0) {
+  if (n > 0 && currentUser && navigator.onLine && lastSyncError) {
+    pill.className = 'sync-pill off';
+    txt.textContent = 'Sync needs attention';
+  } else if (n > 0) {
     pill.className = 'sync-pill queued';
-    txt.textContent = currentUser ? `Syncing… (${n})` : `Saved locally (${n} to sync)`;
+    txt.textContent = currentUser && navigator.onLine ? `Syncing… (${n})` : `Saved locally (${n} to sync)`;
   } else if (currentUser) {
-    pill.className = 'sync-pill on';
-    txt.textContent = 'Synced';
+    const pending = metaHasPendingWrites || txHasPendingWrites;
+    const serverConfirmed = metaSnapshotReady && txSnapshotReady && !metaFromCache && !txFromCache;
+    if (!navigator.onLine) {
+      pill.className = 'sync-pill queued';
+      txt.textContent = 'Offline — data safe';
+    } else if (lastSyncError) {
+      pill.className = 'sync-pill off';
+      txt.textContent = 'Sync retrying';
+    } else if (pending || !serverConfirmed) {
+      pill.className = 'sync-pill queued';
+      txt.textContent = 'Connecting…';
+    } else {
+      pill.className = 'sync-pill on';
+      txt.textContent = 'Synced';
+    }
   } else {
     pill.className = 'sync-pill off';
     txt.textContent = 'Offline';
   }
 }
-window.addEventListener('online', flushQueue);
+window.addEventListener('online', () => { lastSyncError = ''; flushQueue(); updateQueueIndicator(getQueue().length); });
+window.addEventListener('offline', () => updateQueueIndicator(getQueue().length));
 
 function cloudSaveMeta(){
   localSave();
@@ -912,21 +1087,38 @@ function attachCloudListeners(){
   // than silently overwritten.
   flushQueue();
   const userRef = db.collection('users').doc(currentUser.uid);
-  unsubUserDoc = userRef.onSnapshot(doc=>{
+  unsubUserDoc = userRef.onSnapshot({includeMetadataChanges:true}, doc=>{
+    metaSnapshotReady = true;
+    metaFromCache = doc.metadata.fromCache;
+    metaHasPendingWrites = doc.metadata.hasPendingWrites;
     if (doc.exists) {
       const d = doc.data();
       state.accounts = d.accounts || [];
       state.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATEGORIES;
     } else {
-      userRef.set({accounts:state.accounts, categories:state.categories});
+      queueOp({kind:'meta', payload:{accounts:state.accounts, categories:state.categories}});
+      flushQueue();
     }
+    applyPendingQueueToState();
     localSave();
     renderAll();
+    updateQueueIndicator(getQueue().length);
+  }, err=>{
+    lastSyncError = err.message;
+    updateQueueIndicator(getQueue().length);
   });
-  unsubTx = userRef.collection('transactions').orderBy('date','desc').onSnapshot(snap=>{
+  unsubTx = userRef.collection('transactions').orderBy('date','desc').onSnapshot({includeMetadataChanges:true}, snap=>{
+    txSnapshotReady = true;
+    txFromCache = snap.metadata.fromCache;
+    txHasPendingWrites = snap.metadata.hasPendingWrites;
     state.transactions = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    applyPendingQueueToState();
     localSave();
     renderAll();
+    updateQueueIndicator(getQueue().length);
+  }, err=>{
+    lastSyncError = err.message;
+    updateQueueIndicator(getQueue().length);
   });
   setSyncStatus(true);
 }
@@ -934,6 +1126,11 @@ function attachCloudListeners(){
 function detachCloudListeners(){
   if (unsubUserDoc) unsubUserDoc();
   if (unsubTx) unsubTx();
+  unsubUserDoc = null;
+  unsubTx = null;
+  metaSnapshotReady = txSnapshotReady = false;
+  metaFromCache = txFromCache = true;
+  metaHasPendingWrites = txHasPendingWrites = false;
 }
 
 function setSyncStatus(on){
@@ -996,7 +1193,7 @@ function doAuth(){
 }
 function useOffline(){
   currentUser = null;
-  localLoad();
+  activateStorageScope(null);
   showApp(false);
 }
 function signOutUser(){
@@ -1005,9 +1202,11 @@ function signOutUser(){
   location.reload();
 }
 
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(async user=>{
   if (user) {
+    await firestorePersistenceReady;
     currentUser = user;
+    activateStorageScope(user);
     if (sessionStorage.getItem('khata_password_fallback_pending') === '1') {
       sessionStorage.removeItem('khata_password_fallback_pending');
       sessionStorage.setItem('khata_skip_biometric_once','1');
@@ -1440,6 +1639,7 @@ function renderAccounts(){
           <div class="list-row-type">${a.type==='bank'?'Bank debit account':a.type==='credit'?'Credit card':'UPI'}</div>
         </div>
         <div class="row-actions">
+          <button class="icon-btn" onclick="exportAccount('${a.id}')">Export</button>
           <button class="icon-btn" onclick="openAccountModal('${a.id}')">Edit</button>
         </div>
       </div>
@@ -1883,6 +2083,8 @@ function saveTx(){
   if (!selectedCategory || selectedCategory === '__add__') { alert('Select or add a category.'); return; }
   const existingId = document.getElementById('txId').value;
   const id = existingId || uid();
+  const existingTx = existingId ? state.transactions.find(t=>t.id===existingId) : null;
+  const nowIso = new Date().toISOString();
   const qtyVal = parseFloat(document.getElementById('txQty').value);
   const itemName = document.getElementById('txItemName').value.trim();
   const selectedSubcategory = document.getElementById('txSubcategory').value;
@@ -1906,7 +2108,11 @@ function saveTx(){
     itemName,
     qty: qtyVal > 0 ? qtyVal : null,
     unit: document.getElementById('txUnit').value,
-    shop: document.getElementById('txShop').value.trim()
+    shop: document.getElementById('txShop').value.trim(),
+    createdAt: existingTx && existingTx.createdAt ? existingTx.createdAt : nowIso,
+    updatedAt: nowIso,
+    updatedByDevice: DEVICE_ID,
+    schemaVersion: STORAGE_SCHEMA
   };
 
   // Always update local state & backup immediately — never lost, even offline
@@ -2047,18 +2253,56 @@ function removeSubcat(catId, sub){
 ========================================================================= */
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-function exportData(){
-  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+function backupTimestamp(){
+  const now = new Date();
+  const two = n => String(n).padStart(2,'0');
+  return `${String(now.getFullYear()).slice(-2)}${two(now.getMonth()+1)}${two(now.getDate())}_${two(now.getHours())}${two(now.getMinutes())}`;
+}
+function safeFilePart(value){
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9@.-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'account';
+}
+function accountBackupToken(account){
+  const digits = String(account.label || '').match(/\d+/g);
+  // The final four digits identify the account without exposing a complete
+  // bank-account or card number in a filename that may later be shared.
+  const accountNo = digits && digits.length ? digits[digits.length-1].slice(-4) : '';
+  const reference = accountNo || account.label || account.type || 'account';
+  return safeFilePart(`${account.bank || ''}_${reference}`);
+}
+function downloadBackup(data, token){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'khata-export.json'; a.click();
-  URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = `khata_backup_${token}_${backupTimestamp()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportData(){
+  downloadBackup(state, 'all');
+}
+function exportAccount(accountId){
+  const account = state.accounts.find(a => a.id === accountId);
+  if (!account) { alert('Account not found.'); return; }
+  const transactions = state.transactions.filter(t => t.accountId === accountId);
+  const usedCategories = new Set(transactions.map(t => t.categoryId).filter(Boolean));
+  const accountBackup = {
+    accounts: [account],
+    categories: state.categories.filter(c => usedCategories.has(c.id)),
+    transactions
+  };
+  downloadBackup(accountBackup, accountBackupToken(account));
 }
 
 /* ---- PWA: install to home screen, cache shell for fast/offline loads ---- */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('sw.js?v=khata-sync-2', {updateViaCache:'none'})
+      .catch(err => console.warn('SW registration failed', err));
   });
 }
 </script>
