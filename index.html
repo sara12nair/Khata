@@ -507,7 +507,7 @@ input,select,textarea{font-family:inherit;}
         <input type="number" id="fltMaxAmt" placeholder="Max ₹" oninput="renderTransactions()">
       </div>
     </div>
-    <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0</div>
+    <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0 · Difference: ₹0</div>
     <div id="txList"></div>
   </div>
 
@@ -1390,12 +1390,17 @@ function renderTransactions(){
   const visibleCredit = list.reduce((sum,t)=>sum + (t.type==='credit' ? Number(t.amount)||0 : 0), 0);
   const visibleDebit = list.reduce((sum,t)=>sum + (t.type==='debit' ? Number(t.amount)||0 : 0), 0);
   const visibleDifference = visibleCredit - visibleDebit;
-  const differenceText = `${visibleDifference > 0 ? '+' : visibleDifference < 0 ? '-' : ''}${inr(Math.abs(visibleDifference))}`;
+  const visibleDifferenceText = visibleDifference > 0
+    ? '+' + inr(visibleDifference)
+    : visibleDifference < 0
+      ? '-' + inr(Math.abs(visibleDifference))
+      : inr(0);
+  const visibleDifferenceClass = visibleDifference > 0 ? 'credit' : visibleDifference < 0 ? 'debit' : '';
   document.getElementById('txVisibleSummary').innerHTML =
     `Count: <span class="mono">${list.length}</span> · ` +
     `<span class="credit">Credit: <span class="mono">${inr(visibleCredit)}</span></span> · ` +
     `<span class="debit">Debit: <span class="mono">${inr(visibleDebit)}</span></span> · ` +
-    `Difference: <span class="mono">${differenceText}</span>`;
+    `<span class="${visibleDifferenceClass}">Difference: <span class="mono">${visibleDifferenceText}</span></span>`;
 
   list.sort((a,b)=>{
     let cmp;
