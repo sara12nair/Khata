@@ -22,6 +22,8 @@
 
 <!-- Chart.js for Insights tab -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- ExcelJS for formatted .xlsx export -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style>
 :root{
@@ -575,7 +577,9 @@ input,select,textarea{font-family:inherit;}
       </div>
     </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-      <button class="btn ghost" onclick="exportData()">Export data (.json)</button>
+      <button class="btn primary" onclick="exportExcel(false)">Export current view (.xlsx)</button>
+      <button class="btn ghost" onclick="exportExcel(true)">Export all transactions (.xlsx)</button>
+      <button class="btn ghost" onclick="exportData()">Export backup (.json)</button>
       <button class="btn ghost" onclick="signOutUser()" id="signOutBtn" style="display:none;">Sign out</button>
     </div>
     <div class="setup-note" style="margin-top:20px;text-align:left;">
@@ -623,15 +627,6 @@ input,select,textarea{font-family:inherit;}
     <div class="field">
       <label>Sub-category</label>
       <select id="txSubcategory" onfocus="this.dataset.previous=this.value" onchange="onTxSubcategoryChange()"></select>
-    </div>
-    <div class="field">
-      <label>Repeat expense</label>
-      <select id="txRepeat">
-        <option value="none">None (One-time)</option>
-        <option value="weekly">Weekly</option>
-        <option value="biweekly">Bi-weekly (Every 2 weeks)</option>
-        <option value="monthly">Monthly</option>
-      </select>
     </div>
     <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
 
@@ -793,59 +788,15 @@ function localLoad(){
     state.categories = DEFAULT_CATEGORIES;
     localSave();
   }
-  checkRecurringExpenses();
   renderAll();
 }
 
+// Recurring expense generation intentionally disabled.
+// Kept as a harmless stub for backward compatibility with older cached builds.
 function checkRecurringExpenses(){
-  const todayDateValue = localDateStr();
-  const lastCheck = localStorage.getItem('khata_last_recurring_check');
-  if (lastCheck === todayDateValue) return;
-
-  let added = false;
-  const newTxs = [];
-  state.transactions.forEach(t => {
-    if (t.repeat && t.repeat !== 'none' && t.date) {
-      let nextDate = new Date(t.date + 'T00:00:00');
-      let todayDate = new Date(todayDateValue + 'T00:00:00');
-      
-      while (nextDate < todayDate) {
-        if (t.repeat === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
-        else if (t.repeat === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
-        else if (t.repeat === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
-
-        const nextDateStr = localDateStr(nextDate);
-        if (nextDate <= todayDate) {
-          const exists = state.transactions.some(existing => existing.recurringParentId === t.id && existing.date === nextDateStr);
-          if (!exists) {
-            newTxs.push({
-              id: uid(),
-              recurringParentId: t.id,
-              type: t.type,
-              amount: t.amount,
-              date: nextDateStr,
-              time: t.time || '10:00',
-              accountId: t.accountId,
-              categoryId: t.categoryId,
-              subcategory: t.subcategory,
-              repeat: 'none',
-              note: (t.note || '') + ' (Recurring)'
-            });
-            added = true;
-          }
-        }
-      }
-    }
-  });
-
-  if (added) {
-    state.transactions.push(...newTxs);
-    localSave();
-    newTxs.forEach(t => queueOp({kind:'tx-set', id:t.id, payload:t}));
-    flushQueue();
-  }
-  localStorage.setItem('khata_last_recurring_check', todayDateValue);
+  return;
 }
+
 
 /* ---- Write queue: survives offline / not-signed-in, flushes later ---- */
 function getQueue(){
@@ -1745,7 +1696,6 @@ function openTxModal(id){
       accSel.value = t.accountId;
       populateCategoryOptions(t.categoryId);
       document.getElementById('txSubcategory').value = t.subcategory || '';
-      document.getElementById('txRepeat').value = t.repeat || 'none';
       document.getElementById('txNote').value = t.note || '';
       document.getElementById('txItemName').value = t.itemName || '';
       document.getElementById('txQty').value = t.qty || '';
@@ -1760,7 +1710,6 @@ function openTxModal(id){
     document.getElementById('txDate').value = localDateStr(now);
     document.getElementById('txTime').value = now.toTimeString().slice(0,5);
     populateCategoryOptions();
-    document.getElementById('txRepeat').value = 'none';
     document.getElementById('txNote').value = '';
     document.getElementById('txItemName').value = '';
     document.getElementById('txQty').value = '';
@@ -1909,7 +1858,7 @@ function saveTx(){
     accountId: selectedAccount,
     categoryId: selectedCategory,
     subcategory: selectedSubcategory,
-    repeat: document.getElementById('txRepeat').value,
+    repeat: 'none',
     note: document.getElementById('txNote').value.trim(),
     itemName,
     qty: qtyVal > 0 ? qtyVal : null,
@@ -2055,6 +2004,128 @@ function removeSubcat(catId, sub){
 ========================================================================= */
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+async function exportExcel(exportAll=false){
+  if (typeof ExcelJS === 'undefined') { alert('Excel export library did not load. Please check your internet connection and try again.'); return; }
+
+  const el = id => document.getElementById(id);
+  const accF = exportAll ? '' : el('fltAccount').value;
+  const catF = exportAll ? '' : el('fltCategory').value;
+  const subF = exportAll ? '' : el('fltSubcategory').value;
+  const typeF = exportAll ? '' : el('fltType').value;
+  const minRaw = exportAll ? '' : el('fltMinAmt').value;
+  const maxRaw = exportAll ? '' : el('fltMaxAmt').value;
+  const minAmt = parseFloat(minRaw), maxAmt = parseFloat(maxRaw);
+  const qRaw = exportAll ? '' : (el('txSearch').value || '').trim();
+  const q = qRaw.toLowerCase();
+  const fromDate = exportAll ? '' : el('fltFromDate').value;
+  const toDate = exportAll ? '' : el('fltToDate').value;
+  const hasCustomDateRange = !!(fromDate || toDate);
+
+  let list = state.transactions.slice();
+  if (!exportAll && !q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
+  if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
+  if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+  if (accF) list = list.filter(t=>t.accountId===accF);
+  if (catF) list = list.filter(t=>t.categoryId===catF);
+  if (subF) list = list.filter(t=>t.subcategory===subF);
+  if (typeF) list = list.filter(t=>t.type===typeF);
+  if (!isNaN(minAmt)) list = list.filter(t=>Number(t.amount)>=minAmt);
+  if (!isNaN(maxAmt)) list = list.filter(t=>Number(t.amount)<=maxAmt);
+  if (q) list = list.filter(t => {
+    const cat = state.categories.find(c=>c.id===t.categoryId);
+    const acc = state.accounts.find(a=>a.id===t.accountId);
+    return [t.note,t.itemName,t.shop,t.subcategory,t.date,t.time,t.amount,t.type,cat&&cat.name,acc&&accountLabel(acc)]
+      .some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||'') || (b.time||'').localeCompare(a.time||''));
+  if (!list.length) { alert('No transactions to export in this view.'); return; }
+
+  const accObj = accF ? state.accounts.find(a=>a.id===accF) : null;
+  const catObj = catF ? state.categories.find(c=>c.id===catF) : null;
+  const commonAccount = accObj ? accountLabel(accObj) : '';
+  const commonCategory = catObj ? catObj.name : '';
+  const commonSub = subF || '';
+  const commonType = typeF ? (typeF==='credit'?'Credit':'Debit') : '';
+
+  const filters=[];
+  if (commonAccount) filters.push('Account: '+commonAccount);
+  if (commonCategory) filters.push('Category: '+commonCategory);
+  if (commonSub) filters.push('Sub-category: '+commonSub);
+  if (commonType) filters.push('Type: '+commonType);
+  if (fromDate || toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
+  else if (!exportAll && !q) filters.push('Period: '+({today:'Today',week:'This week',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  if (qRaw) filters.push('Search: '+qRaw);
+  if (minRaw || maxRaw) filters.push('Amount: '+(minRaw||'0')+' to '+(maxRaw||'Any'));
+
+  const totalCredit=list.reduce((s,t)=>s+(t.type==='credit'?Number(t.amount)||0:0),0);
+  const totalDebit=list.reduce((s,t)=>s+(t.type==='debit'?Number(t.amount)||0:0),0);
+  const difference=totalCredit-totalDebit;
+
+  // Hide columns whose value is already stated once in the report heading.
+  const cols=[
+    {header:'Sl. No.',key:'sl',width:9},
+    {header:'Date',key:'date',width:13},
+    {header:'Time',key:'time',width:10},
+    ...(!commonType?[{header:'Type',key:'type',width:11}]:[]),
+    ...(!commonAccount?[{header:'Account',key:'account',width:24}]:[]),
+    ...(!commonCategory?[{header:'Category',key:'category',width:20}]:[]),
+    ...(!commonSub?[{header:'Sub-category',key:'subcategory',width:20}]:[]),
+    {header:'Description / Item',key:'description',width:34},
+    {header:'Qty',key:'qty',width:9},
+    {header:'Unit',key:'unit',width:10},
+    {header:'Shop',key:'shop',width:20},
+    {header:'Credit',key:'credit',width:15},
+    {header:'Debit',key:'debit',width:15}
+  ];
+
+  const wb=new ExcelJS.Workbook();
+  wb.creator='Khata Expense Tracker'; wb.created=new Date();
+  const ws=wb.addWorksheet('Transactions',{views:[{state:'frozen',ySplit:5}]});
+  ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.25,right:0.25,top:0.55,bottom:0.55,header:0.2,footer:0.2},horizontalCentered:true};
+  const printed=new Date();
+  const printedText=printed.toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  ws.headerFooter={oddHeader:'&L&14&BKhata — Expense Tracker&C'+(exportAll?'All Transactions':'Filtered Statement')+'&R'+(commonAccount||'All Accounts'),oddFooter:'&LPrinted on: '+printedText+'&CConfidential&RPage &P of &N'};
+
+  const lastCol=cols.length;
+  ws.mergeCells(1,1,1,lastCol); ws.getCell(1,1).value='KHATA — EXPENSE STATEMENT';
+  ws.getCell(1,1).font={bold:true,size:16}; ws.getCell(1,1).alignment={horizontal:'center'};
+  ws.mergeCells(2,1,2,lastCol); ws.getCell(2,1).value=filters.length?filters.join('  |  '):(exportAll?'All transactions':'Current view');
+  ws.getCell(2,1).font={italic:true,size:10}; ws.getCell(2,1).alignment={horizontal:'center',wrapText:true};
+  ws.mergeCells(3,1,3,lastCol); ws.getCell(3,1).value=`Count: ${list.length}   |   Credit: ₹${totalCredit.toLocaleString('en-IN')}   |   Debit: ₹${totalDebit.toLocaleString('en-IN')}   |   Difference: ${difference<0?'-':'+'}₹${Math.abs(difference).toLocaleString('en-IN')}`;
+  ws.getCell(3,1).font={bold:true,size:10}; ws.getCell(3,1).alignment={horizontal:'center'};
+
+  const headerRow=5;
+  cols.forEach((c,i)=>{ const cell=ws.getCell(headerRow,i+1); cell.value=c.header; cell.font={bold:true}; cell.alignment={horizontal:'center',vertical:'middle',wrapText:true}; ws.getColumn(i+1).width=c.width; });
+  ws.getRow(headerRow).height=28;
+
+  list.forEach((t,idx)=>{
+    const cat=state.categories.find(c=>c.id===t.categoryId);
+    const acc=state.accounts.find(a=>a.id===t.accountId);
+    const desc=[t.note,t.itemName].filter(Boolean).join(' — ');
+    const obj={sl:idx+1,date:t.date?new Date(t.date+'T00:00:00'):'',time:t.time||'',type:t.type==='credit'?'Credit':'Debit',account:acc?accountLabel(acc):'',category:cat?cat.name:'Uncategorised',subcategory:t.subcategory||'',description:desc,qty:t.qty?Number(t.qty):'',unit:t.unit||'',shop:t.shop||'',credit:t.type==='credit'?Number(t.amount)||0:'',debit:t.type==='debit'?Number(t.amount)||0:''};
+    const row=ws.addRow(cols.map(c=>obj[c.key]));
+    const dateIdx=cols.findIndex(c=>c.key==='date')+1; if(dateIdx) row.getCell(dateIdx).numFmt='dd-mm-yyyy';
+    ['credit','debit'].forEach(k=>{const ci=cols.findIndex(c=>c.key===k)+1;if(ci) row.getCell(ci).numFmt='₹#,##0.00;[Red]-₹#,##0.00';});
+    row.alignment={vertical:'top'};
+  });
+  const firstData=headerRow+1, lastData=headerRow+list.length;
+  ws.autoFilter={from:{row:headerRow,column:1},to:{row:lastData,column:lastCol}};
+  ws.pageSetup.printTitlesRow=`${headerRow}:${headerRow}`;
+  ws.pageSetup.printArea=`A1:${ws.getColumn(lastCol).letter}${lastData}`;
+
+  const totalRow=ws.addRow([]); totalRow.getCell(1).value='TOTAL'; totalRow.getCell(1).font={bold:true};
+  const creditCol=cols.findIndex(c=>c.key==='credit')+1, debitCol=cols.findIndex(c=>c.key==='debit')+1;
+  if(creditCol){totalRow.getCell(creditCol).value={formula:`SUM(${ws.getColumn(creditCol).letter}${firstData}:${ws.getColumn(creditCol).letter}${lastData})`,result:totalCredit};totalRow.getCell(creditCol).numFmt='₹#,##0.00';totalRow.getCell(creditCol).font={bold:true};}
+  if(debitCol){totalRow.getCell(debitCol).value={formula:`SUM(${ws.getColumn(debitCol).letter}${firstData}:${ws.getColumn(debitCol).letter}${lastData})`,result:totalDebit};totalRow.getCell(debitCol).numFmt='₹#,##0.00';totalRow.getCell(debitCol).font={bold:true};}
+
+  ws.eachRow({includeEmpty:false},row=>row.eachCell({includeEmpty:true},cell=>{cell.border={bottom:{style:'hair'}};}));
+  const buffer=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  const stamp=printed.getFullYear().toString().slice(-2)+String(printed.getMonth()+1).padStart(2,'0')+String(printed.getDate()).padStart(2,'0')+'_'+String(printed.getHours()).padStart(2,'0')+String(printed.getMinutes()).padStart(2,'0');
+  a.href=url; a.download=`Khata_${exportAll?'All':'Filtered'}_${stamp}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 function exportData(){
   const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
