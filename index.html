@@ -24,6 +24,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <!-- ExcelJS for formatted .xlsx export -->
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<!-- SheetJS for .xlsx / legacy .xls / CSV import -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- jsPDF + AutoTable for direct PDF reports -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 
 <style>
 :root{
@@ -144,6 +149,9 @@ input,select,textarea{font-family:inherit;}
 .list-row-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .list-row-name{font-weight:600;font-size:14px;}
 .list-row-type{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;}
+.list-row-balance{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;margin-top:4px;}
+.list-row.archived{opacity:.62;}
+.account-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
 .row-actions{display:flex;gap:6px;}
 .icon-btn{background:var(--paper);border:1px solid var(--paper-line);border-radius:8px;padding:5px 8px;font-size:12px;color:var(--ink);}
 .subchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
@@ -290,6 +298,8 @@ input,select,textarea{font-family:inherit;}
 .date-range-head span{font-size:11.5px;color:var(--ink-soft);font-weight:700;}
 .date-range-head button{border:0;background:none;color:var(--brass);font-size:11.5px;font-weight:600;padding:3px 0;}
 .date-range label{flex:1;min-width:0;font-size:11px;color:var(--ink-soft);font-weight:600;}
+.date-label-line{display:flex;align-items:center;justify-content:space-between;}
+.today-mini{border:0;background:none;color:var(--brass);font-size:10.5px;font-weight:700;padding:0;}
 .date-range input{
   display:block;width:100%;margin-top:4px;border:1px solid var(--paper-line);background:var(--white);
   border-radius:10px;padding:7px 8px;font-size:12px;color:var(--ink);min-width:0;
@@ -354,6 +364,16 @@ input,select,textarea{font-family:inherit;}
   background:var(--brass-soft);color:#5c4a15;font-size:11.5px;line-height:1.4;
 }
 .item-category-hint.show{display:block;}
+.help-note{font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:-5px;margin-bottom:12px;}
+.check-row{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);margin:6px 0 12px;}
+.check-row input{width:18px;height:18px;}
+.preview-wrap{overflow:auto;max-height:42vh;border:1px solid var(--paper-line);border-radius:10px;background:var(--white);}
+.preview-table{border-collapse:collapse;width:100%;min-width:760px;font-size:11px;}
+.preview-table th,.preview-table td{padding:6px;border-bottom:1px solid var(--paper-line);text-align:left;white-space:nowrap;}
+.preview-table th{position:sticky;top:0;background:var(--paper);z-index:1;}
+.mapping-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mapping-grid .field{margin-bottom:2px;}
+.settings-note{font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -456,7 +476,7 @@ input,select,textarea{font-family:inherit;}
   </div>
 
   <div class="balance-card">
-    <div class="balance-label">Total balance</div>
+    <div class="balance-label">Total net balance</div>
     <div class="balance-amt mono" id="totalBalance">₹0</div>
     <div class="balance-sub">
       <span class="credit">▲ In <span id="totalCredit" class="mono">₹0</span></span>
@@ -489,11 +509,11 @@ input,select,textarea{font-family:inherit;}
     </div>
     <div class="date-range-head">
       <span>Search by date</span>
-      <button type="button" onclick="clearDateRange()">Clear dates</button>
+      <div><button type="button" onclick="clearDateRange()">Clear dates</button><button type="button" style="margin-left:12px" onclick="clearAllFilters()">Clear all filters</button></div>
     </div>
     <div class="date-range">
-      <label>From<input type="date" id="fltFromDate" onchange="onDateRangeChange('from')"></label>
-      <label>To<input type="date" id="fltToDate" onchange="onDateRangeChange('to')"></label>
+      <label><span class="date-label-line"><span>From</span><button type="button" class="today-mini" onclick="setDateToday('from',event)">Today</button></span><input type="date" id="fltFromDate" onchange="onDateRangeChange('from')"></label>
+      <label><span class="date-label-line"><span>To</span><button type="button" class="today-mini" onclick="setDateToday('to',event)">Today</button></span><input type="date" id="fltToDate" onchange="onDateRangeChange('to')"></label>
     </div>
     <div class="search-scope-hint" id="searchScopeHint">Searching all dates and fields</div>
     <button class="filters-toggle" onclick="toggleMoreFilters()" id="moreFiltersBtn">+ More filters</button>
@@ -502,7 +522,7 @@ input,select,textarea{font-family:inherit;}
         <select id="fltAccount" onchange="renderTransactions()"><option value="">All accounts</option></select>
         <select id="fltCategory" onchange="onFltCategoryChange()"><option value="">All categories</option></select>
         <select id="fltSubcategory" onchange="renderTransactions()"><option value="">All sub-categories</option></select>
-        <select id="fltType" onchange="renderTransactions()"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option></select>
+        <select id="fltType" onchange="renderTransactions()"><option value="">All types</option><option value="credit">Credit (in)</option><option value="debit">Debit (out)</option><option value="transfer">Transfers</option></select>
       </div>
       <div class="amount-range">
         <input type="number" id="fltMinAmt" placeholder="Min ₹" oninput="renderTransactions()">
@@ -515,7 +535,7 @@ input,select,textarea{font-family:inherit;}
 
   <!-- ACCOUNTS TAB -->
   <div class="section" id="tab-accounts">
-    <div class="section-head"><h2>Accounts &amp; cards</h2><button class="link-btn" onclick="openAccountModal()">+ Add</button></div>
+    <div class="section-head"><h2>Accounts, cash &amp; cards</h2><div><button class="link-btn" onclick="openTransferModal()">⇄ Transfer</button><button class="link-btn" onclick="openAccountModal()">+ Add</button></div></div>
     <div id="accountsList"></div>
   </div>
 
@@ -579,9 +599,16 @@ input,select,textarea{font-family:inherit;}
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
       <button class="btn primary" onclick="exportExcel(false)">Export current view (.xlsx)</button>
       <button class="btn ghost" onclick="exportExcel(true)">Export all transactions (.xlsx)</button>
+      <button class="btn ghost" onclick="exportPDF(false)">PDF current view</button>
+      <button class="btn ghost" onclick="printCurrentView()">Print current view</button>
+      <button class="btn ghost" onclick="document.getElementById('importFile').click()">Import Excel / CSV</button>
+      <input id="importFile" type="file" accept=".xlsx,.xls,.csv,.tsv" style="display:none" onchange="loadImportFile(event)">
       <button class="btn ghost" onclick="exportData()">Export backup (.json)</button>
+      <button class="btn ghost" onclick="document.getElementById('restoreFile').click()">Restore backup (.json)</button>
+      <input id="restoreFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreData(event)">
       <button class="btn ghost" onclick="signOutUser()" id="signOutBtn" style="display:none;">Sign out</button>
     </div>
+    <div class="settings-note">Imports open in a preview first. Restores offer Merge or Replace and protect against duplicate transactions.</div>
     <div class="setup-note" style="margin-top:20px;text-align:left;">
       <b>Cloud sync active:</b> Connected to Firebase project <code>moneypurse-def5c</code>. Sign in with the same credentials across your devices to sync instantly.
     </div>
@@ -681,18 +708,68 @@ input,select,textarea{font-family:inherit;}
     <input type="hidden" id="accId">
     <div class="field">
       <label>Type</label>
-      <select id="accType">
+      <select id="accType" onchange="updateAccountFields()">
+        <option value="cash">Cash</option>
         <option value="bank">Bank account (debit)</option>
         <option value="credit">Credit card</option>
         <option value="upi">UPI</option>
+        <option value="wallet">Digital wallet</option>
+        <option value="other">Other account</option>
       </select>
     </div>
-    <div class="field"><label>Bank name</label><input id="accBank" placeholder="e.g. HDFC Bank, SBI, ICICI..."></div>
-    <div class="field"><label>Label / last 4 digits / UPI ID</label><input id="accLabel" placeholder="e.g. Savings •1234 or name@upi"></div>
+    <div class="field"><label id="accNameLabel">Bank / account name</label><input id="accBank" placeholder="e.g. Cash, HDFC Bank, Paytm Wallet"></div>
+    <div class="field"><label id="accDetailLabel">Label / last 4 digits / UPI ID</label><input id="accLabel" placeholder="e.g. Savings •1234 or name@upi"></div>
+    <div class="field"><label id="accOpeningLabel">Opening balance (₹)</label><input id="accOpening" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>
+    <div id="creditFields" style="display:none;">
+      <div class="field"><label>Credit limit (₹, optional)</label><input id="accCreditLimit" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="field"><label>Payment due day (optional)</label><input id="accDueDay" type="number" inputmode="numeric" min="1" max="31" placeholder="e.g. 18"></div>
+    </div>
+    <label class="check-row"><input type="checkbox" id="accActive" checked> Active account</label>
+    <div class="help-note" id="accTypeHelp"></div>
     <div class="modal-actions">
       <button class="btn ghost" id="accDeleteBtn" style="display:none;" onclick="deleteCurrentAccount()">Delete</button>
       <button class="btn ghost" onclick="closeAccountModal()">Cancel</button>
       <button class="btn primary" onclick="saveAccount()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TRANSFER MODAL ============ -->
+<div class="overlay" id="transferOverlay">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('transferOverlay')">✕</button>
+    <h3 id="transferModalTitle">Transfer between accounts</h3>
+    <input type="hidden" id="transferId">
+    <div class="field"><label>From account</label><select id="transferFrom"></select></div>
+    <div class="field"><label>To account</label><select id="transferTo"></select></div>
+    <div class="field"><label>Amount (₹)</label><input id="transferAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1"><label>Date</label><input id="transferDate" type="date"></div>
+      <div class="field" style="flex:1"><label>Time</label><input id="transferTime" type="time"></div>
+    </div>
+    <div class="field"><label>Note</label><input id="transferNote" placeholder="e.g. ATM withdrawal, card payment"></div>
+    <div class="help-note">Transfers move money between accounts and are excluded from income and expense totals.</div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="transferDeleteBtn" style="display:none" onclick="deleteCurrentTransfer()">Delete</button>
+      <button class="btn ghost" onclick="closeModal('transferOverlay')">Cancel</button>
+      <button class="btn primary" onclick="saveTransfer()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ IMPORT PREVIEW MODAL ============ -->
+<div class="overlay" id="importOverlay">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('importOverlay')">✕</button>
+    <h3>Import preview</h3>
+    <div class="field"><label>Default account when the file has no matching account</label><select id="importDefaultAccount"></select></div>
+    <div class="mapping-grid" id="importMappings"></div>
+    <div class="help-note" id="importSummary"></div>
+    <div class="preview-wrap"><table class="preview-table"><thead id="importPreviewHead"></thead><tbody id="importPreviewBody"></tbody></table></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="toggleImportRows(true)">Select all</button>
+      <button class="btn ghost" onclick="toggleImportRows(false)">Deselect all</button>
+      <button class="btn primary" onclick="commitImport()">Import selected</button>
     </div>
   </div>
 </div>
@@ -788,6 +865,9 @@ function localLoad(){
     state.categories = DEFAULT_CATEGORIES;
     localSave();
   }
+  state.accounts = Array.isArray(state.accounts) ? state.accounts.map(a=>({openingBalance:0,active:true,...a})) : [];
+  state.categories = Array.isArray(state.categories) && state.categories.length ? state.categories : DEFAULT_CATEGORIES;
+  state.transactions = Array.isArray(state.transactions) ? state.transactions : [];
   renderAll();
 }
 
@@ -1210,11 +1290,12 @@ function renderBalance(){
   let credit=0, debit=0, today=0;
   const t0 = todayStr();
   state.transactions.forEach(t=>{
-    if (t.type==='credit') credit += Number(t.amount);
-    else debit += Number(t.amount);
-    if (t.type==='debit' && t.date===t0) today += Number(t.amount);
+    if (!t.isTransfer && t.type==='credit') credit += Number(t.amount);
+    else if (!t.isTransfer && t.type==='debit') debit += Number(t.amount);
+    if (!t.isTransfer && t.type==='debit' && t.date===t0) today += Number(t.amount);
   });
-  document.getElementById('totalBalance').textContent = inr(credit-debit);
+  const netBalance = state.accounts.reduce((sum,a)=>sum + (a.type==='credit' ? -accountBalance(a) : accountBalance(a)), 0);
+  document.getElementById('totalBalance').textContent = inr(netBalance);
   document.getElementById('totalCredit').textContent = inr(credit);
   document.getElementById('totalDebit').textContent = inr(debit);
   document.getElementById('spentToday').textContent = inr(today);
@@ -1264,9 +1345,9 @@ function clearTransactionSearch(){
   input.focus();
 }
 function handleSearchKey(event){
-  if (event.key === 'Enter') {
+  if (event.key === 'Enter' || event.key === 'Escape') {
     event.preventDefault();
-    clearTransactionSearch();
+    clearAllFilters();
   }
 }
 function onDateRangeChange(changed){
@@ -1289,10 +1370,55 @@ function clearDateRange(){
   to.min = '';
   renderTransactions();
 }
+function setDateToday(which,event){
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  document.getElementById(which==='from'?'fltFromDate':'fltToDate').value = todayStr();
+  onDateRangeChange(which);
+}
+function clearAllFilters(){
+  document.getElementById('txSearch').value = '';
+  document.getElementById('fltFromDate').value = '';
+  document.getElementById('fltToDate').value = '';
+  document.getElementById('fltFromDate').max = '';
+  document.getElementById('fltToDate').min = '';
+  document.getElementById('fltAccount').value = '';
+  document.getElementById('fltCategory').value = '';
+  onFltCategoryChange(false);
+  document.getElementById('fltSubcategory').value = '';
+  document.getElementById('fltType').value = '';
+  document.getElementById('fltMinAmt').value = '';
+  document.getElementById('fltMaxAmt').value = '';
+  document.getElementById('sortBy').value = 'date';
+  sortDir = 'desc';
+  document.getElementById('sortDirBtn').textContent = '↓';
+  ledgerPeriod = 'today';
+  document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period==='today'));
+  document.getElementById('moreFilters').style.display = 'none';
+  document.getElementById('moreFiltersBtn').textContent = '+ More filters';
+  renderTransactions();
+  document.getElementById('txSearch').focus();
+}
 
 function accountLabel(a){
-  const typeTag = a.type==='bank' ? 'Bank' : a.type==='credit' ? 'Card' : 'UPI';
+  const typeTag = {cash:'Cash',bank:'Bank',credit:'Card',upi:'UPI',wallet:'Wallet',other:'Account'}[a.type] || 'Account';
+  if (a.type==='cash') return a.label ? `${a.bank || 'Cash'} · ${a.label}` : (a.bank || 'Cash');
   return `${a.bank ? a.bank+' · ' : ''}${a.label || typeTag}`;
+}
+function accountTypeLabel(a){
+  return {cash:'Cash',bank:'Bank debit account',credit:'Credit card',upi:'UPI',wallet:'Digital wallet',other:'Other account'}[a.type] || 'Account';
+}
+function accountBalance(a){
+  const opening = Number(a.openingBalance)||0;
+  return state.transactions.filter(t=>t.accountId===a.id).reduce((balance,t)=>{
+    if (a.type==='credit') return balance + (t.type==='debit' ? Number(t.amount)||0 : -(Number(t.amount)||0));
+    return balance + (t.type==='credit' ? Number(t.amount)||0 : -(Number(t.amount)||0));
+  }, opening);
+}
+function safeFilePart(value){
+  return String(value||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,60) || 'All';
+}
+function timestampYYMMDDHHMM(d=new Date()){
+  return d.getFullYear().toString().slice(-2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
 }
 
 function renderTransactions(){
@@ -1326,7 +1452,7 @@ function renderTransactions(){
   if (accF) list = list.filter(t=>t.accountId===accF);
   if (catF) list = list.filter(t=>t.categoryId===catF);
   if (subF) list = list.filter(t=>t.subcategory===subF);
-  if (typeF) list = list.filter(t=>t.type===typeF);
+  if (typeF) list = list.filter(t=>typeF==='transfer' ? !!t.isTransfer : (!t.isTransfer && t.type===typeF));
   if (!isNaN(minAmt)) list = list.filter(t=>Number(t.amount)>=minAmt);
   if (!isNaN(maxAmt)) list = list.filter(t=>Number(t.amount)<=maxAmt);
   if (q) list = list.filter(t => {
@@ -1338,8 +1464,8 @@ function renderTransactions(){
     ].some(value => String(value || '').toLowerCase().includes(q));
   });
 
-  const visibleCredit = list.reduce((sum,t)=>sum + (t.type==='credit' ? Number(t.amount)||0 : 0), 0);
-  const visibleDebit = list.reduce((sum,t)=>sum + (t.type==='debit' ? Number(t.amount)||0 : 0), 0);
+  const visibleCredit = list.reduce((sum,t)=>sum + (!t.isTransfer && t.type==='credit' ? Number(t.amount)||0 : 0), 0);
+  const visibleDebit = list.reduce((sum,t)=>sum + (!t.isTransfer && t.type==='debit' ? Number(t.amount)||0 : 0), 0);
   const visibleDifference = visibleCredit - visibleDebit;
   const visibleDifferenceText = visibleDifference > 0
     ? '+' + inr(visibleDifference)
@@ -1375,10 +1501,10 @@ function renderTransactions(){
     if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
     if (t.shop) itemBits.push(escapeHtml(t.shop));
     const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
-    return `<div class="tx-row ${t.type}" onclick="openTxModal('${t.id}')">
+    return `<div class="tx-row ${t.type}" onclick="${t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`}">
       <div class="tx-icon">${icon}</div>
       <div class="tx-mid">
-        <div class="tx-cat">${escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
+        <div class="tx-cat">${t.isTransfer?'Transfer':escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
         <div class="tx-sub">${escapeHtml(acc?accountLabel(acc):'—')}</div>
         <div class="tx-meta">${formatDate(t.date)}${t.time ? ' · '+t.time : ''}${t.note ? ' · '+escapeHtml(t.note) : ''}</div>
         ${itemLine}
@@ -1390,19 +1516,31 @@ function renderTransactions(){
 
 function renderAccounts(){
   const wrap = document.getElementById('accountsList');
-  if (!state.accounts.length) { wrap.innerHTML = '<div class="empty-note">No accounts yet. Add your bank accounts, credit cards, or UPI IDs.</div>'; return; }
-  wrap.innerHTML = state.accounts.slice().sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`
-    <div class="list-row">
+  if (!state.accounts.length) { wrap.innerHTML = '<div class="empty-note">No accounts yet. Add Cash, bank accounts, credit cards, wallets, or UPI IDs.</div>'; return; }
+  wrap.innerHTML = state.accounts.slice().sort((a,b)=>(a.active===false)-(b.active===false)||alphaCompare(accountLabel(a),accountLabel(b))).map(a=>{
+    const bal = accountBalance(a);
+    const balanceText = a.type==='credit' ? `Outstanding: ${inr(bal)}` : `Balance: ${inr(bal)}`;
+    const limitText = a.type==='credit' && Number(a.creditLimit)>0 ? ` · Available: ${inr(Math.max(0,Number(a.creditLimit)-bal))}` : '';
+    const dueText = a.type==='credit' && a.dueDay ? ` · Due day: ${a.dueDay}` : '';
+    return `
+    <div class="list-row ${a.active===false?'archived':''}">
       <div class="list-row-top">
         <div>
           <div class="list-row-name">${escapeHtml(accountLabel(a))}</div>
-          <div class="list-row-type">${a.type==='bank'?'Bank debit account':a.type==='credit'?'Credit card':'UPI'}</div>
+          <div class="list-row-type">${escapeHtml(accountTypeLabel(a))}${a.active===false?' · Archived':''}${dueText}</div>
+          <div class="list-row-balance">${balanceText}${limitText}</div>
         </div>
         <div class="row-actions">
           <button class="icon-btn" onclick="openAccountModal('${a.id}')">Edit</button>
         </div>
       </div>
-    </div>`).join('');
+      <div class="account-actions">
+        <button class="icon-btn" onclick="exportExcel(false,'${a.id}')">Excel</button>
+        <button class="icon-btn" onclick="exportPDF(false,'${a.id}')">PDF</button>
+        <button class="icon-btn" onclick="exportAccountBackup('${a.id}')">Backup</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderCategories(){
@@ -1458,7 +1596,7 @@ function renderInsights(){
 
 function renderPieChart(){
   const start = insightRangeStart();
-  const debits = state.transactions.filter(t => t.type==='debit' && (!start || t.date >= start));
+  const debits = state.transactions.filter(t => !t.isTransfer && t.type==='debit' && (!start || t.date >= start));
   const byCat = {};
   debits.forEach(t=>{
     const cat = state.categories.find(c=>c.id===t.categoryId);
@@ -1495,8 +1633,8 @@ function renderAvgTable(){
   const start3 = monthsAgoStr(3), start6 = monthsAgoStr(6);
   const body = document.getElementById('avgTableBody');
   const rows = state.categories.map(c=>{
-    const tx3 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start3);
-    const tx6 = state.transactions.filter(t=>t.type==='debit' && t.categoryId===c.id && t.date >= start6);
+    const tx3 = state.transactions.filter(t=>!t.isTransfer && t.type==='debit' && t.categoryId===c.id && t.date >= start3);
+    const tx6 = state.transactions.filter(t=>!t.isTransfer && t.type==='debit' && t.categoryId===c.id && t.date >= start6);
     const sum3 = tx3.reduce((s,t)=>s+Number(t.amount),0);
     const sum6 = tx6.reduce((s,t)=>s+Number(t.amount),0);
     const avg3 = sum3 / 3;
@@ -1554,7 +1692,7 @@ function renderPriceTracker(){
   const itemName = sel.value;
   const norm = s => (s||'').trim().toLowerCase();
   const purchases = state.transactions
-    .filter(t => t.type==='debit' && norm(t.itemName) === norm(itemName) && t.qty)
+    .filter(t => !t.isTransfer && t.type==='debit' && norm(t.itemName) === norm(itemName) && t.qty)
     .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
   if (!purchases.length) {
@@ -1629,7 +1767,7 @@ function populateCategoryOptions(selectedCatId){
 
 function populateTxAccountOptions(selectedId){
   const sel = document.getElementById('txAccount');
-  const options = state.accounts.slice().sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+  const options = state.accounts.filter(a=>a.active!==false || a.id===selectedId).sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}${a.active===false?' (Archived)':''}</option>`).join('');
   sel.innerHTML = (options || '<option value="">Select account</option>') + '<option value="__add__">＋ Add new account…</option>';
   if (selectedId && state.accounts.some(a=>a.id===selectedId)) sel.value = selectedId;
   sel.dataset.previous = sel.value;
@@ -1866,6 +2004,11 @@ function saveTx(){
     shop: document.getElementById('txShop').value.trim()
   };
 
+  if (!existingId) {
+    const duplicate = state.transactions.find(t=>!t.isTransfer && t.type===tx.type && t.accountId===tx.accountId && t.date===tx.date && Number(t.amount)===Number(tx.amount) && normalizeItemName(t.note)===normalizeItemName(tx.note));
+    if (duplicate && !confirm(`Possible duplicate found:\n${formatDate(duplicate.date)} · ${accountLabel(state.accounts.find(a=>a.id===duplicate.accountId)||{})} · ${inr(duplicate.amount)}\n\nSave this transaction anyway?`)) return;
+  }
+
   // Always update local state & backup immediately — never lost, even offline
   const idx = state.transactions.findIndex(t=>t.id===id);
   if (idx>-1) state.transactions[idx] = tx; else state.transactions.push(tx);
@@ -1906,21 +2049,52 @@ function openAccountModal(id, fromTx=false){
     document.getElementById('accType').value = a.type;
     document.getElementById('accBank').value = a.bank || '';
     document.getElementById('accLabel').value = a.label || '';
+    document.getElementById('accOpening').value = Number(a.openingBalance)||'';
+    document.getElementById('accCreditLimit').value = Number(a.creditLimit)||'';
+    document.getElementById('accDueDay').value = a.dueDay || '';
+    document.getElementById('accActive').checked = a.active!==false;
   } else {
-    document.getElementById('accType').value = 'bank';
+    document.getElementById('accType').value = 'cash';
     document.getElementById('accBank').value = '';
     document.getElementById('accLabel').value = '';
+    document.getElementById('accOpening').value = '';
+    document.getElementById('accCreditLimit').value = '';
+    document.getElementById('accDueDay').value = '';
+    document.getElementById('accActive').checked = true;
   }
+  updateAccountFields();
   openModal('accOverlay');
+}
+function updateAccountFields(){
+  const type = document.getElementById('accType').value;
+  const nameLabel = document.getElementById('accNameLabel');
+  const detailLabel = document.getElementById('accDetailLabel');
+  const openingLabel = document.getElementById('accOpeningLabel');
+  const help = document.getElementById('accTypeHelp');
+  document.getElementById('creditFields').style.display = type==='credit' ? 'block' : 'none';
+  nameLabel.textContent = type==='cash' ? 'Cash account name' : type==='wallet' ? 'Wallet name' : type==='credit' ? 'Card issuer / bank' : 'Bank / account name';
+  detailLabel.textContent = type==='cash' ? 'Optional label' : type==='credit' ? 'Card name / last 4 digits' : type==='upi' ? 'UPI ID / label' : 'Label / last 4 digits';
+  openingLabel.textContent = type==='credit' ? 'Opening outstanding amount (₹)' : 'Opening balance (₹)';
+  help.textContent = type==='cash' ? 'No bank name or account number is required. “Cash” will be used when the name is left blank.' : type==='credit' ? 'Card debits increase the outstanding amount; payments/credits reduce it.' : type==='upi' ? 'UPI is shown as a payment account in this version. You may alternatively use the linked bank account.' : '';
 }
 function saveAccount(){
   const id = document.getElementById('accId').value || uid();
+  const type = document.getElementById('accType').value;
+  let bank = document.getElementById('accBank').value.trim();
+  if (type==='cash' && !bank) bank = 'Cash';
+  if (!bank && type!=='upi' && type!=='other') { alert('Enter an account name.'); return; }
   const acc = {
     id,
-    type: document.getElementById('accType').value,
-    bank: document.getElementById('accBank').value.trim(),
-    label: document.getElementById('accLabel').value.trim()
+    type,
+    bank,
+    label: document.getElementById('accLabel').value.trim(),
+    openingBalance: Number(document.getElementById('accOpening').value)||0,
+    creditLimit: type==='credit' ? Number(document.getElementById('accCreditLimit').value)||0 : 0,
+    dueDay: type==='credit' ? Math.min(31,Math.max(0,Number(document.getElementById('accDueDay').value)||0)) : 0,
+    active: document.getElementById('accActive').checked
   };
+  const duplicate = state.accounts.find(a=>a.id!==id && accountLabel(a).toLowerCase()===accountLabel(acc).toLowerCase());
+  if (duplicate) { alert('An account with the same name already exists.'); return; }
   const idx = state.accounts.findIndex(a=>a.id===id);
   if (idx>-1) state.accounts[idx] = acc; else state.accounts.push(acc);
   cloudSaveMeta();
@@ -1937,11 +2111,72 @@ function closeAccountModal(){
 }
 function deleteCurrentAccount(){
   const id = document.getElementById('accId').value;
-  if (!confirm('Delete this account? Existing transactions will keep showing it as "removed account".')) return;
+  const used = state.transactions.some(t=>t.accountId===id);
+  if (used) { alert('This account has transactions and cannot be permanently deleted. Untick “Active account” and save to archive it.'); return; }
+  if (!confirm('Permanently delete this unused account?')) return;
   state.accounts = state.accounts.filter(a=>a.id!==id);
   cloudSaveMeta();
   renderAll();
   closeModal('accOverlay');
+}
+
+/* =========================================================================
+   ACCOUNT TRANSFERS — paired entries, excluded from income/expense totals
+========================================================================= */
+function transferAccountOptions(selectedId=''){
+  return state.accounts.filter(a=>a.active!==false || a.id===selectedId).sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+}
+function openTransferModal(transferId=''){
+  if (state.accounts.filter(a=>a.active!==false).length < 2) { alert('Add at least two active accounts before recording a transfer.'); return; }
+  const pair = transferId ? state.transactions.filter(t=>t.transferId===transferId) : [];
+  const out = pair.find(t=>t.transferDirection==='out');
+  const incoming = pair.find(t=>t.transferDirection==='in');
+  document.getElementById('transferId').value = transferId;
+  document.getElementById('transferModalTitle').textContent = transferId ? 'Edit account transfer' : 'Transfer between accounts';
+  document.getElementById('transferDeleteBtn').style.display = transferId ? 'block' : 'none';
+  document.getElementById('transferFrom').innerHTML = transferAccountOptions(out&&out.accountId);
+  document.getElementById('transferTo').innerHTML = transferAccountOptions(incoming&&incoming.accountId);
+  const now = new Date();
+  document.getElementById('transferFrom').value = out ? out.accountId : (state.accounts.find(a=>a.active!==false)||{}).id || '';
+  document.getElementById('transferTo').value = incoming ? incoming.accountId : (state.accounts.filter(a=>a.active!==false)[1]||{}).id || '';
+  document.getElementById('transferAmount').value = out ? out.amount : '';
+  document.getElementById('transferDate').value = out ? out.date : localDateStr(now);
+  document.getElementById('transferTime').value = out ? out.time||'' : now.toTimeString().slice(0,5);
+  document.getElementById('transferNote').value = out ? (out.transferNote||'') : '';
+  openModal('transferOverlay');
+}
+function saveTransfer(){
+  const transferId = document.getElementById('transferId').value || uid();
+  const fromId = document.getElementById('transferFrom').value;
+  const toId = document.getElementById('transferTo').value;
+  const amount = Number(document.getElementById('transferAmount').value);
+  const date = document.getElementById('transferDate').value;
+  const time = document.getElementById('transferTime').value;
+  const transferNote = document.getElementById('transferNote').value.trim();
+  if (!fromId || !toId || fromId===toId) { alert('Choose two different accounts.'); return; }
+  if (!(amount>0)) { alert('Enter a valid transfer amount.'); return; }
+  if (!date) { alert('Select the transfer date.'); return; }
+  const old = state.transactions.filter(t=>t.transferId===transferId);
+  const outId = (old.find(t=>t.transferDirection==='out')||{}).id || uid();
+  const inId = (old.find(t=>t.transferDirection==='in')||{}).id || uid();
+  const fromName = accountLabel(state.accounts.find(a=>a.id===fromId)||{});
+  const toName = accountLabel(state.accounts.find(a=>a.id===toId)||{});
+  const common = {isTransfer:true,transferId,date,time,amount,categoryId:'',subcategory:'',itemName:'',qty:null,unit:'',shop:'',repeat:'none',transferNote};
+  const outTx = {...common,id:outId,type:'debit',accountId:fromId,transferDirection:'out',note:transferNote||`Transfer to ${toName}`};
+  const inTx = {...common,id:inId,type:'credit',accountId:toId,transferDirection:'in',note:transferNote||`Transfer from ${fromName}`};
+  state.transactions = state.transactions.filter(t=>t.transferId!==transferId).concat(outTx,inTx);
+  localSave(); renderAll();
+  queueOp({kind:'tx-set',id:outId,payload:outTx});
+  queueOp({kind:'tx-set',id:inId,payload:inTx});
+  flushQueue(); closeModal('transferOverlay');
+}
+function deleteCurrentTransfer(){
+  const transferId = document.getElementById('transferId').value;
+  if (!transferId || !confirm('Delete both sides of this transfer?')) return;
+  const pair = state.transactions.filter(t=>t.transferId===transferId);
+  state.transactions = state.transactions.filter(t=>t.transferId!==transferId);
+  pair.forEach(t=>queueOp({kind:'tx-delete',id:t.id}));
+  localSave(); renderAll(); flushQueue(); closeModal('transferOverlay');
 }
 
 /* =========================================================================
@@ -2004,31 +2239,31 @@ function removeSubcat(catId, sub){
 ========================================================================= */
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-async function exportExcel(exportAll=false){
+async function exportExcel(exportAll=false, accountOverride=''){
   if (typeof ExcelJS === 'undefined') { alert('Excel export library did not load. Please check your internet connection and try again.'); return; }
 
   const el = id => document.getElementById(id);
-  const accF = exportAll ? '' : el('fltAccount').value;
-  const catF = exportAll ? '' : el('fltCategory').value;
-  const subF = exportAll ? '' : el('fltSubcategory').value;
-  const typeF = exportAll ? '' : el('fltType').value;
-  const minRaw = exportAll ? '' : el('fltMinAmt').value;
-  const maxRaw = exportAll ? '' : el('fltMaxAmt').value;
+  const accF = accountOverride || (exportAll ? '' : el('fltAccount').value);
+  const catF = exportAll || accountOverride ? '' : el('fltCategory').value;
+  const subF = exportAll || accountOverride ? '' : el('fltSubcategory').value;
+  const typeF = exportAll || accountOverride ? '' : el('fltType').value;
+  const minRaw = exportAll || accountOverride ? '' : el('fltMinAmt').value;
+  const maxRaw = exportAll || accountOverride ? '' : el('fltMaxAmt').value;
   const minAmt = parseFloat(minRaw), maxAmt = parseFloat(maxRaw);
-  const qRaw = exportAll ? '' : (el('txSearch').value || '').trim();
+  const qRaw = exportAll || accountOverride ? '' : (el('txSearch').value || '').trim();
   const q = qRaw.toLowerCase();
-  const fromDate = exportAll ? '' : el('fltFromDate').value;
-  const toDate = exportAll ? '' : el('fltToDate').value;
+  const fromDate = exportAll || accountOverride ? '' : el('fltFromDate').value;
+  const toDate = exportAll || accountOverride ? '' : el('fltToDate').value;
   const hasCustomDateRange = !!(fromDate || toDate);
 
   let list = state.transactions.slice();
-  if (!exportAll && !q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
+  if (!exportAll && !accountOverride && !q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
   if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
   if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
   if (accF) list = list.filter(t=>t.accountId===accF);
   if (catF) list = list.filter(t=>t.categoryId===catF);
   if (subF) list = list.filter(t=>t.subcategory===subF);
-  if (typeF) list = list.filter(t=>t.type===typeF);
+  if (typeF) list = list.filter(t=>typeF==='transfer' ? !!t.isTransfer : (!t.isTransfer && t.type===typeF));
   if (!isNaN(minAmt)) list = list.filter(t=>Number(t.amount)>=minAmt);
   if (!isNaN(maxAmt)) list = list.filter(t=>Number(t.amount)<=maxAmt);
   if (q) list = list.filter(t => {
@@ -2045,7 +2280,7 @@ async function exportExcel(exportAll=false){
   const commonAccount = accObj ? accountLabel(accObj) : '';
   const commonCategory = catObj ? catObj.name : '';
   const commonSub = subF || '';
-  const commonType = typeF ? (typeF==='credit'?'Credit':'Debit') : '';
+  const commonType = typeF ? (typeF==='credit'?'Credit':typeF==='debit'?'Debit':'Transfer') : '';
 
   const filters=[];
   if (commonAccount) filters.push('Account: '+commonAccount);
@@ -2057,8 +2292,8 @@ async function exportExcel(exportAll=false){
   if (qRaw) filters.push('Search: '+qRaw);
   if (minRaw || maxRaw) filters.push('Amount: '+(minRaw||'0')+' to '+(maxRaw||'Any'));
 
-  const totalCredit=list.reduce((s,t)=>s+(t.type==='credit'?Number(t.amount)||0:0),0);
-  const totalDebit=list.reduce((s,t)=>s+(t.type==='debit'?Number(t.amount)||0:0),0);
+  const totalCredit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:0),0);
+  const totalDebit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:0),0);
   const difference=totalCredit-totalDebit;
 
   // Hide columns whose value is already stated once in the report heading.
@@ -2102,7 +2337,7 @@ async function exportExcel(exportAll=false){
     const cat=state.categories.find(c=>c.id===t.categoryId);
     const acc=state.accounts.find(a=>a.id===t.accountId);
     const desc=[t.note,t.itemName].filter(Boolean).join(' — ');
-    const obj={sl:idx+1,date:t.date?new Date(t.date+'T00:00:00'):'',time:t.time||'',type:t.type==='credit'?'Credit':'Debit',account:acc?accountLabel(acc):'',category:cat?cat.name:'Uncategorised',subcategory:t.subcategory||'',description:desc,qty:t.qty?Number(t.qty):'',unit:t.unit||'',shop:t.shop||'',credit:t.type==='credit'?Number(t.amount)||0:'',debit:t.type==='debit'?Number(t.amount)||0:''};
+    const obj={sl:idx+1,date:t.date?new Date(t.date+'T00:00:00'):'',time:t.time||'',type:t.isTransfer?'Transfer':t.type==='credit'?'Credit':'Debit',account:acc?accountLabel(acc):'',category:t.isTransfer?'Transfer':cat?cat.name:'Uncategorised',subcategory:t.subcategory||'',description:desc,qty:t.qty?Number(t.qty):'',unit:t.unit||'',shop:t.shop||'',credit:!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:'',debit:!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:''};
     const row=ws.addRow(cols.map(c=>obj[c.key]));
     const dateIdx=cols.findIndex(c=>c.key==='date')+1; if(dateIdx) row.getCell(dateIdx).numFmt='dd-mm-yyyy';
     ['credit','debit'].forEach(k=>{const ci=cols.findIndex(c=>c.key===k)+1;if(ci) row.getCell(ci).numFmt='₹#,##0.00;[Red]-₹#,##0.00';});
@@ -2122,16 +2357,206 @@ async function exportExcel(exportAll=false){
   const buffer=await wb.xlsx.writeBuffer();
   const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
-  const stamp=printed.getFullYear().toString().slice(-2)+String(printed.getMonth()+1).padStart(2,'0')+String(printed.getDate()).padStart(2,'0')+'_'+String(printed.getHours()).padStart(2,'0')+String(printed.getMinutes()).padStart(2,'0');
-  a.href=url; a.download=`Khata_${exportAll?'All':'Filtered'}_${stamp}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const stamp=timestampYYMMDDHHMM(printed);
+  const scope=commonAccount?safeFilePart(commonAccount):(exportAll?'All':'Filtered');
+  a.href=url; a.download=`Khata_Export_${scope}_${stamp}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function getReportData(exportAll=false, accountOverride=''){
+  const el=id=>document.getElementById(id);
+  const accF=accountOverride||(exportAll?'':el('fltAccount').value);
+  const catF=exportAll||accountOverride?'':el('fltCategory').value;
+  const subF=exportAll||accountOverride?'':el('fltSubcategory').value;
+  const typeF=exportAll||accountOverride?'':el('fltType').value;
+  const qRaw=exportAll||accountOverride?'':(el('txSearch').value||'').trim();
+  const q=qRaw.toLowerCase();
+  const fromDate=exportAll||accountOverride?'':el('fltFromDate').value;
+  const toDate=exportAll||accountOverride?'':el('fltToDate').value;
+  const minRaw=exportAll||accountOverride?'':el('fltMinAmt').value;
+  const maxRaw=exportAll||accountOverride?'':el('fltMaxAmt').value;
+  const minAmt=parseFloat(minRaw),maxAmt=parseFloat(maxRaw);
+  const hasRange=!!(fromDate||toDate);
+  let list=state.transactions.slice();
+  if(!exportAll&&!accountOverride&&!q&&!hasRange) list=list.filter(ledgerDateFilter);
+  if(fromDate) list=list.filter(t=>t.date&&t.date>=fromDate);
+  if(toDate) list=list.filter(t=>t.date&&t.date<=toDate);
+  if(accF) list=list.filter(t=>t.accountId===accF);
+  if(catF) list=list.filter(t=>t.categoryId===catF);
+  if(subF) list=list.filter(t=>t.subcategory===subF);
+  if(typeF) list=list.filter(t=>typeF==='transfer'?!!t.isTransfer:(!t.isTransfer&&t.type===typeF));
+  if(!isNaN(minAmt)) list=list.filter(t=>Number(t.amount)>=minAmt);
+  if(!isNaN(maxAmt)) list=list.filter(t=>Number(t.amount)<=maxAmt);
+  if(q) list=list.filter(t=>{
+    const cat=state.categories.find(c=>c.id===t.categoryId),acc=state.accounts.find(a=>a.id===t.accountId);
+    return [t.note,t.itemName,t.shop,t.subcategory,t.date,t.time,t.amount,t.type,cat&&cat.name,acc&&accountLabel(acc)].some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.time||'').localeCompare(a.time||''));
+  const acc=accF?state.accounts.find(a=>a.id===accF):null;
+  const cat=catF?state.categories.find(c=>c.id===catF):null;
+  const filters=[];
+  if(acc) filters.push('Account: '+accountLabel(acc));
+  if(cat) filters.push('Category: '+cat.name);
+  if(subF) filters.push('Sub-category: '+subF);
+  if(typeF) filters.push('Type: '+(typeF==='credit'?'Credit':typeF==='debit'?'Debit':'Transfer'));
+  if(fromDate||toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
+  else if(!exportAll&&!q) filters.push('Period: '+({today:'Today',week:'This week',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  if(qRaw) filters.push('Search: '+qRaw);
+  const credit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:0),0);
+  const debit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:0),0);
+  return {list,filters,credit,debit,difference:credit-debit,scope:acc?safeFilePart(accountLabel(acc)):(exportAll?'All':'Filtered')};
+}
+
+function reportRows(list){
+  return list.map((t,i)=>{
+    const acc=state.accounts.find(a=>a.id===t.accountId),cat=state.categories.find(c=>c.id===t.categoryId);
+    return [i+1,formatDate(t.date),t.time||'',t.isTransfer?'Transfer':t.type==='credit'?'Credit':'Debit',acc?accountLabel(acc):'Removed account',t.isTransfer?'Transfer':cat?cat.name:'Uncategorised',t.subcategory||'',[t.note,t.itemName].filter(Boolean).join(' - '),t.shop||'',!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:'',!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:''];
+  });
+}
+
+function exportPDF(exportAll=false,accountOverride=''){
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('PDF library did not load. Check your internet connection and try again.');return;}
+  const data=getReportData(exportAll,accountOverride);
+  if(!data.list.length){alert('No transactions to export in this view.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const totalToken='{total_pages_count_string}';
+  const printed=new Date();
+  const printedText=printed.toLocaleString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const drawPdfHeader=()=>{doc.setTextColor(28,42,68);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('KHATA - EXPENSE STATEMENT',148.5,10,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(data.filters.join('  |  ')||(exportAll?'All transactions':'Current view'),148.5,16,{align:'center',maxWidth:270});doc.setFont('helvetica','bold');doc.text(`Count: ${data.list.length}   |   Credit: Rs. ${data.credit.toLocaleString('en-IN')}   |   Debit: Rs. ${data.debit.toLocaleString('en-IN')}   |   Difference: ${data.difference<0?'-':'+'}Rs. ${Math.abs(data.difference).toLocaleString('en-IN')}`,148.5,22,{align:'center'});};
+  doc.autoTable({
+    startY:29,margin:{top:29,bottom:14,left:7,right:7},theme:'grid',styles:{fontSize:7,cellPadding:1.6,overflow:'linebreak'},headStyles:{fillColor:[28,42,68],textColor:255,fontStyle:'bold'},
+    head:[['Sl.','Date','Time','Type','Account','Category','Sub-category','Description / Item','Shop','Credit','Debit']],body:reportRows(data.list),
+    columnStyles:{0:{cellWidth:9},1:{cellWidth:18},2:{cellWidth:14},3:{cellWidth:16},4:{cellWidth:29},5:{cellWidth:27},6:{cellWidth:25},7:{cellWidth:54},8:{cellWidth:27},9:{cellWidth:22,halign:'right'},10:{cellWidth:22,halign:'right'}},
+    didDrawPage:()=>{drawPdfHeader();const h=doc.internal.pageSize.height;doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(70);doc.text('Printed on: '+printedText,7,h-6);doc.text('Confidential',148.5,h-6,{align:'center'});doc.text('Page '+doc.internal.getNumberOfPages()+' of '+totalToken,290,h-6,{align:'right'});doc.setTextColor(0);}
+  });
+  if(typeof doc.putTotalPages==='function') doc.putTotalPages(totalToken);
+  doc.save(`Khata_Report_${data.scope}_${timestampYYMMDDHHMM(printed)}.pdf`);
+}
+
+function printCurrentView(){
+  const data=getReportData(false,'');
+  if(!data.list.length){alert('No transactions to print in this view.');return;}
+  const printed=new Date();
+  const rows=reportRows(data.list).map(r=>`<tr>${r.map((v,i)=>`<td class="${i>=9?'num':''}">${escapeHtml(v)}</td>`).join('')}</tr>`).join('');
+  const w=window.open('','_blank');
+  if(!w){alert('Allow pop-ups to open the print report.');return;}
+  w.document.write(`<!doctype html><html><head><title>Khata_Report_${data.scope}_${timestampYYMMDDHHMM(printed)}</title><style>@page{size:A4 landscape;margin:16mm 8mm 14mm}body{font-family:Arial,sans-serif;color:#1C2A44;margin:0}h1{text-align:center;font-size:18px;margin:0 0 5px}.meta,.sum{text-align:center;font-size:10px;margin:3px}.sum{font-weight:bold}table{width:100%;border-collapse:collapse;font-size:8px;margin-top:9px}thead{display:table-header-group}th{background:#1C2A44;color:white}th,td{border:1px solid #bbb;padding:3px;text-align:left;vertical-align:top}.num{text-align:right}.footer{position:fixed;bottom:-9mm;left:0;right:0;font-size:8px;display:flex;justify-content:space-between}.pagenum:after{content:counter(page)}tr{page-break-inside:avoid}</style></head><body><h1>KHATA - EXPENSE STATEMENT</h1><div class="meta">${escapeHtml(data.filters.join(' | ')||'Current view')}</div><div class="sum">Count: ${data.list.length} | Credit: Rs. ${data.credit.toLocaleString('en-IN')} | Debit: Rs. ${data.debit.toLocaleString('en-IN')} | Difference: ${data.difference<0?'-':'+'}Rs. ${Math.abs(data.difference).toLocaleString('en-IN')}</div><table><thead><tr><th>Sl.</th><th>Date</th><th>Time</th><th>Type</th><th>Account</th><th>Category</th><th>Sub-category</th><th>Description / Item</th><th>Shop</th><th>Credit</th><th>Debit</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><span>Printed on: ${escapeHtml(printed.toLocaleString('en-IN'))}</span><span>Confidential</span><span>Page <span class="pagenum"></span></span></div><script>window.onload=()=>{window.print()}<\/script></body></html>`);
+  w.document.close();
+}
+
+let importRows=[],importHeaders=[];
+function cellText(value){
+  if(value instanceof Date) return localDateStr(value);
+  if(value&&typeof value==='object'){if(value.text!=null)return String(value.text);if(value.result!=null)return String(value.result);if(Array.isArray(value.richText))return value.richText.map(x=>x.text).join('');}
+  return value==null?'':String(value).trim();
+}
+function parseDelimited(text,delimiter){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];if(ch==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(ch===delimiter&&!quoted){row.push(cell);cell='';}else if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(v=>String(v).trim()))rows.push(row);row=[];cell='';}else cell+=ch;}
+  row.push(cell);if(row.some(v=>String(v).trim()))rows.push(row);return rows;
+}
+function detectImportHeader(matrix){
+  const words=['date','time','description','narration','note','details','particulars','debit','credit','withdrawal','deposit','amount','type','account','category','subcategory','sub-category','item','quantity','qty','unit','shop','merchant','vendor'];
+  let best=-1,bestScore=-1;matrix.slice(0,40).forEach((row,i)=>{const values=row.map(v=>cellText(v).toLowerCase().trim()).filter(Boolean);const keywordHits=values.filter(v=>words.some(w=>v===w||v.includes(w))).length;const score=keywordHits*20+Math.min(values.length,12);if(keywordHits&&score>bestScore){best=i;bestScore=score;}});
+  return best>=0?best:matrix.findIndex(r=>r.filter(v=>String(v).trim()).length>=2);
+}
+async function loadImportFile(event){
+  const file=event.target.files&&event.target.files[0];event.target.value='';if(!file)return;
+  if(!state.accounts.some(a=>a.active!==false)){alert('Add an active account before importing transactions.');return;}
+  try{
+    let matrix=[];
+    if(/\.csv$/i.test(file.name)||/\.tsv$/i.test(file.name)){const text=await file.text();matrix=parseDelimited(text,/\.tsv$/i.test(file.name)?'\t':',');}
+    else if(typeof XLSX!=='undefined'){const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});matrix=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:false});}
+    else{if(typeof ExcelJS==='undefined')throw new Error('Excel import library did not load.');const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());const ws=wb.worksheets[0];ws.eachRow({includeEmpty:true},r=>{const vals=[];for(let c=1;c<=ws.columnCount;c++)vals.push(cellText(r.getCell(c).value));matrix.push(vals);});}
+    if(matrix.length<2)throw new Error('No transaction rows found.');
+    const headerIndex=detectImportHeader(matrix);
+    importHeaders=matrix[headerIndex].map((h,i)=>cellText(h)||`Column ${i+1}`);
+    importRows=matrix.slice(headerIndex+1).filter(r=>r.some(v=>String(v).trim()));
+    if(!importRows.length)throw new Error('No transaction rows found below the headings.');
+    renderImportPreview();openModal('importOverlay');
+  }catch(err){alert('Could not read this file: '+err.message);}
+}
+function guessedColumn(key){
+  const aliases={date:['date','transaction date','txn date'],time:['time'],description:['description','narration','note','details','particulars','remarks'],debit:['debit','withdrawal','spent','expense'],credit:['credit','deposit','received','income'],amount:['amount','transaction amount'],type:['type','transaction type','dr/cr'],account:['account','payment mode','bank','card'],category:['category'],subcategory:['sub-category','subcategory'],item:['item','item name'],quantity:['quantity','qty'],unit:['unit'],shop:['shop','merchant','vendor']};
+  const names=(aliases[key]||[]).map(x=>x.toLowerCase());return importHeaders.findIndex(h=>names.includes(String(h).trim().toLowerCase()));
+}
+function renderImportPreview(){
+  const fields=[['date','Date'],['time','Time'],['description','Description'],['debit','Debit'],['credit','Credit'],['amount','Amount'],['type','Type'],['account','Account'],['category','Category'],['subcategory','Sub-category'],['item','Item'],['quantity','Quantity'],['unit','Unit'],['shop','Shop']];
+  const optionHtml=(selected)=>'<option value="-1">— Not used —</option>'+importHeaders.map((h,i)=>`<option value="${i}" ${i===selected?'selected':''}>${escapeHtml(h)}</option>`).join('');
+  document.getElementById('importMappings').innerHTML=fields.map(([key,label])=>`<div class="field"><label>${label}</label><select id="map_${key}" onchange="refreshImportSummary()">${optionHtml(guessedColumn(key))}</select></div>`).join('');
+  document.getElementById('importDefaultAccount').innerHTML=state.accounts.filter(a=>a.active!==false).sort((a,b)=>alphaCompare(accountLabel(a),accountLabel(b))).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join('');
+  document.getElementById('importPreviewHead').innerHTML='<tr><th>Use</th>'+importHeaders.map(h=>`<th>${escapeHtml(h)}</th>`).join('')+'</tr>';
+  document.getElementById('importPreviewBody').innerHTML=importRows.map((r,i)=>`<tr><td><input class="import-row-check" type="checkbox" data-index="${i}" checked></td>${importHeaders.map((_,j)=>`<td>${escapeHtml(cellText(r[j]))}</td>`).join('')}</tr>`).join('');
+  refreshImportSummary();
+}
+function refreshImportSummary(){document.getElementById('importSummary').textContent=`${importRows.length} data rows found. Review the mapping and untick unwanted rows before importing.`;}
+function toggleImportRows(on){document.querySelectorAll('.import-row-check').forEach(c=>c.checked=on);}
+function mapped(row,key){const el=document.getElementById('map_'+key);const i=el?Number(el.value):-1;return i>=0?cellText(row[i]):'';}
+function normaliseImportDate(value){
+  if(value instanceof Date)return localDateStr(value);const s=cellText(value);if(!s)return '';
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(s)){const p=s.slice(0,10).split('-');return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;}
+  const m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);if(m){let y=m[3];if(y.length===2)y='20'+y;return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}
+  const d=new Date(s);return isNaN(d)?'':localDateStr(d);
+}
+function numberFrom(value){const n=Number(String(value||'').replace(/[^0-9.\-]/g,''));return isFinite(n)?Math.abs(n):0;}
+function findOrCreateCategory(name,subcategory){
+  let clean=String(name||'').trim();let cat=state.categories.find(c=>c.name.toLowerCase()===clean.toLowerCase());
+  if(!cat&&clean){cat={id:uid(),name:clean,subs:[]};state.categories.push(cat);}
+  if(!cat)cat=state.categories.find(c=>c.name.toLowerCase()==='others')||state.categories[0];
+  if(subcategory&&cat&&!cat.subs.some(s=>s.toLowerCase()===subcategory.toLowerCase()))cat.subs.push(subcategory);
+  return cat;
+}
+function importDuplicate(tx){return state.transactions.some(t=>!t.isTransfer&&t.date===tx.date&&t.type===tx.type&&t.accountId===tx.accountId&&Number(t.amount)===Number(tx.amount)&&normalizeItemName(t.note)===normalizeItemName(tx.note));}
+function commitImport(){
+  const selected=[...document.querySelectorAll('.import-row-check:checked')].map(c=>Number(c.dataset.index));
+  if(!selected.length){alert('Select at least one row.');return;}
+  const defaultAccount=document.getElementById('importDefaultAccount').value;let added=0,duplicates=0,skipped=0;
+  selected.forEach(i=>{
+    const row=importRows[i],date=normaliseImportDate(mapped(row,'date'));const debit=numberFrom(mapped(row,'debit')),credit=numberFrom(mapped(row,'credit')),amountCol=numberFrom(mapped(row,'amount'));
+    let type=debit?'debit':credit?'credit':String(mapped(row,'type')).toLowerCase().match(/cr|credit|income|received/)?'credit':'debit';const amount=debit||credit||amountCol;
+    if(!date||!(amount>0)){skipped++;return;}
+    const accountText=mapped(row,'account').toLowerCase();const matchedAccount=accountText?state.accounts.find(a=>accountLabel(a).toLowerCase()===accountText||accountLabel(a).toLowerCase().includes(accountText)):null;
+    const subcategory=mapped(row,'subcategory').trim();const cat=findOrCreateCategory(mapped(row,'category'),subcategory);if(!cat){skipped++;return;}
+    const tx={id:uid(),type,amount,date,time:mapped(row,'time'),accountId:matchedAccount?matchedAccount.id:defaultAccount,categoryId:cat.id,subcategory,repeat:'none',note:mapped(row,'description'),itemName:mapped(row,'item'),qty:numberFrom(mapped(row,'quantity'))||null,unit:mapped(row,'unit'),shop:mapped(row,'shop')};
+    if(importDuplicate(tx)){duplicates++;return;}state.transactions.push(tx);queueOp({kind:'tx-set',id:tx.id,payload:tx});added++;
+  });
+  cloudSaveMeta();localSave();renderAll();flushQueue();closeModal('importOverlay');alert(`Import complete.\nAdded: ${added}\nDuplicates skipped: ${duplicates}\nInvalid/blank rows skipped: ${skipped}`);
+}
+
+async function restoreData(event){
+  const file=event.target.files&&event.target.files[0];event.target.value='';if(!file)return;
+  try{
+    const incoming=JSON.parse(await file.text());if(!incoming||!Array.isArray(incoming.accounts)||!Array.isArray(incoming.categories)||!Array.isArray(incoming.transactions))throw new Error('This is not a valid Khata backup.');
+    const accountOnly=incoming.backupScope==='account';const choice=prompt(accountOnly?'This is an account backup. Type MERGE to restore it without removing other accounts.':'Type MERGE to add the backup without removing current data, or REPLACE to use only the backup data.');if(!choice)return;const mode=choice.trim().toUpperCase();if(!['MERGE','REPLACE'].includes(mode)||(accountOnly&&mode!=='MERGE')){alert(accountOnly?'Account backups can only be merged.':'Restore cancelled. Type exactly MERGE or REPLACE.');return;}
+    if(!confirm(`${mode} current Khata data with this backup?\n\nBackup: ${incoming.accounts.length} accounts, ${incoming.categories.length} categories, ${incoming.transactions.length} transactions`))return;
+    const oldTransactions=state.transactions.slice();
+    if(mode==='REPLACE')state={accounts:incoming.accounts,categories:incoming.categories,transactions:incoming.transactions};
+    else{
+      const mergeById=(a,b)=>[...new Map([...a,...b].map(x=>[x.id||uid(),x])).values()];
+      state.accounts=mergeById(state.accounts,incoming.accounts);state.categories=mergeById(state.categories,incoming.categories);
+      incoming.transactions.forEach(t=>{if(!state.transactions.some(x=>x.id===t.id)&&!importDuplicate(t))state.transactions.push(t);});
+    }
+    state.accounts=state.accounts.map(a=>({openingBalance:0,active:true,...a}));localSave();cloudSaveMeta();
+    if(mode==='REPLACE'){const incomingIds=new Set(state.transactions.map(t=>t.id));oldTransactions.filter(t=>!incomingIds.has(t.id)).forEach(t=>queueOp({kind:'tx-delete',id:t.id}));}
+    state.transactions.forEach(t=>queueOp({kind:'tx-set',id:t.id,payload:t}));flushQueue();renderAll();alert(`Restore complete: ${state.transactions.length} transactions available.`);
+  }catch(err){alert('Could not restore this backup: '+err.message);}
 }
 
 function exportData(){
-  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const payload={...state,backupVersion:2,backupScope:'all',createdAt:new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'khata-export.json'; a.click();
+  a.href = url; a.download = `Khata_Backup_All_${timestampYYMMDDHHMM()}.json`; a.click();
   URL.revokeObjectURL(url);
+}
+function exportAccountBackup(accountId){
+  const account=state.accounts.find(a=>a.id===accountId);if(!account)return;
+  const transactions=state.transactions.filter(t=>t.accountId===accountId);
+  const categoryIds=new Set(transactions.map(t=>t.categoryId).filter(Boolean));
+  const payload={accounts:[account],categories:state.categories.filter(c=>categoryIds.has(c.id)),transactions,backupScope:'account',createdAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`Khata_Backup_${safeFilePart(accountLabel(account))}_${timestampYYMMDDHHMM()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 /* ---- PWA: install to home screen, cache shell for fast/offline loads ---- */
