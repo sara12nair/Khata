@@ -375,8 +375,24 @@ input,select,textarea{font-family:inherit;}
 .mapping-grid .field{margin-bottom:2px;}
 .settings-note{font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:8px;}
 
-/* ===== SHOPPING LIST TRIAL ===== */
+/* ===== SHOPPING BILL ===== */
+#shopBillDate,#shopStore,#shopNote{border:1px solid var(--paper-line);border-radius:10px;padding:10px;background:var(--white);color:var(--ink)}
+.shop-row{opacity:1!important}
+
 .shop-summary{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;align-items:center}.shop-summary b{font-size:18px}.shop-add{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px;margin-bottom:12px}.shop-grid{display:grid;grid-template-columns:2fr .8fr .9fr 1.1fr;gap:8px}.shop-grid input,.shop-grid select{width:100%}.shop-actions{display:flex;gap:8px;margin-top:9px}.shop-row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:11px;margin-bottom:9px}.shop-row.done{opacity:.7}.shop-top{display:flex;gap:10px;align-items:flex-start}.shop-check{width:22px;height:22px;margin-top:2px;accent-color:var(--accent)}.shop-main{flex:1;min-width:0}.shop-name{font-weight:700;font-size:15px}.shop-meta{font-size:12px;color:var(--muted);margin-top:3px}.shop-price{font-weight:700;white-space:nowrap}.shop-row-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.shop-row-actions button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:9px;padding:6px 9px;font-size:12px}.shop-empty{text-align:center;color:var(--muted);padding:24px 10px}.shop-section-title{display:flex;justify-content:space-between;align-items:center;margin:15px 0 8px}.shop-section-title h3{margin:0;font-size:15px}.shop-mini-input{width:92px!important;padding:6px 7px!important;display:inline-block!important}@media(max-width:560px){.shop-grid{grid-template-columns:1fr 1fr}.shop-grid .shop-item{grid-column:1/-1}.bottomnav .navbtn{font-size:10px}}
+
+
+/* ===== Shopping Trip multi-shop enhancement ===== */
+.trip-shop-card{background:var(--white);border:1px solid var(--paper-line);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:var(--shadow)}
+.trip-shop-head{display:flex;gap:8px;align-items:center}
+.trip-shop-name{font-weight:700;flex:1;min-width:0}
+.trip-shop-meta{font-size:11.5px;color:var(--ink-soft);margin-top:3px}
+.trip-shop-items{margin-top:9px;padding-top:8px;border-top:1px dashed var(--paper-line)}
+.trip-shop-item{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 0}
+.trip-shop-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.trip-shop-controls input,.trip-shop-controls select{width:100%;border:1px solid var(--paper-line);border-radius:9px;padding:8px;background:var(--white);color:var(--ink);font-size:12px}
+.trip-shop-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.trip-shop-actions button{border:1px solid var(--paper-line);background:var(--paper);color:var(--ink);border-radius:8px;padding:6px 9px;font-size:12px}
 
 </style>
 </head>
@@ -538,28 +554,59 @@ input,select,textarea{font-family:inherit;}
   </div>
 
 
-  <!-- SHOPPING LIST TRIAL TAB -->
+  <!-- SHOPPING TRIP TAB -->
   <div class="section" id="tab-shopping">
-    <div class="section-head"><h2>🛒 Shopping List <span style="font-size:11px;color:var(--muted);font-weight:500;">TRIAL</span></h2><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="link-btn" onclick="exportShoppingCSV()">Export CSV</button><button class="link-btn" onclick="printShoppingList()">Print / PDF</button><button class="link-btn" onclick="clearPurchasedShopping()">Clear purchased</button></div></div>
-    <div class="shop-summary"><div><div style="font-size:12px;color:var(--muted)">To buy</div><b id="shopOpenCount">0 items</b></div><div style="text-align:right"><div style="font-size:12px;color:var(--muted)">Estimated total</div><b id="shopEstTotal">₹0</b></div></div>
+    <div class="section-head"><h2>🛒 Shopping Trip</h2></div>
+
     <div class="shop-add">
-      <div class="shop-grid">
-        <input class="shop-item" id="shopItem" placeholder="Item name e.g. Milk" oninput="refreshShoppingHistoryHint()" onblur="applyShoppingHistoryToListForm()" onkeydown="if(event.key==='Enter'){event.preventDefault();applyShoppingHistoryToListForm();addShoppingItem()}">
-        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Qty">
-        <select id="shopUnit"><option value="">Unit</option><option>pcs</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
-        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Est. ₹">
+      <div style="font-size:12px;font-weight:700;margin-bottom:7px;">Trip date</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="shopBillDate" type="date" aria-label="Shopping trip date" style="flex:1">
+        <button class="btn ghost" style="flex:0 0 auto;padding:10px 12px" onclick="addShoppingTripShop()">+ Add Shop</button>
       </div>
-      <div class="shop-grid" style="margin-top:8px;grid-template-columns:1fr 1fr;">
-        <input id="shopStore" placeholder="Shop / store (optional)">
-        <input id="shopNote" placeholder="Note (optional)">
-      </div>
-      <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--muted)"></div>
-      <div class="shop-actions"><button class="btn primary" style="flex:1" onclick="addShoppingItem()">+ Add to list</button></div>
     </div>
-    <div class="shop-section-title"><h3>To buy</h3><span id="shopOpenTotal" class="mono"></span></div>
-    <div id="shoppingOpenList"></div>
-    <div class="shop-section-title"><h3>Purchased</h3><span id="shopDoneCount" style="font-size:12px;color:var(--muted)"></span></div>
-    <div id="shoppingDoneList"></div>
+
+    <div id="shoppingTripShops"></div>
+
+    <!-- Existing item controls retained, now used inside the selected shop -->
+    <div class="shop-add" id="shoppingItemEditor" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+        <div style="font-size:12px;font-weight:700;">Items for <span id="activeShoppingShopName"></span></div>
+        <button class="link-btn" onclick="closeShoppingItemEditor()">Done</button>
+      </div>
+      <input id="shopStore" type="hidden">
+      <div class="shop-grid">
+        <input class="shop-item" id="shopItem" placeholder="Item e.g. Onion" oninput="refreshShoppingHistoryHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();addShoppingItem()}">
+        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Qty" oninput="calculateShoppingEstimate()">
+        <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
+        <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
+        <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="pack">per pack</option><option value="box">per box</option></select>
+        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹">
+      </div>
+      <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
+      <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--ink-soft)"></div>
+      <div class="shop-actions">
+        <button class="btn primary" style="flex:1" onclick="addShoppingItem()">+ Add item</button>
+        <button class="btn ghost" onclick="openCalculator()">🧮</button>
+      </div>
+    </div>
+
+    <div class="shop-summary">
+      <div><div style="font-size:12px;color:var(--ink-soft)">Trip items</div><b id="shopOpenCount">0 items</b></div>
+      <div style="text-align:right"><div style="font-size:12px;color:var(--ink-soft)">Trip total</div><b id="shopEstTotal">₹0</b></div>
+    </div>
+
+    <!-- compatibility containers for existing functions -->
+    <div id="shoppingOpenList" style="display:none"></div>
+    <div id="shoppingDoneList" style="display:none"></div>
+    <span id="shopOpenTotal" style="display:none"></span><span id="shopDoneCount" style="display:none"></span>
+
+    <button class="btn primary" style="width:100%;font-size:15px;margin-top:8px;" onclick="postShoppingTripToKhata()">₹ Post Trip to Khata</button>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+      <button class="link-btn" onclick="exportShoppingCSV()">Export CSV</button>
+      <button class="link-btn" onclick="printShoppingList()">Print / PDF</button>
+      <button class="link-btn" onclick="clearCurrentShoppingBill()">Clear trip</button>
+    </div>
   </div>
 
   <!-- ACCOUNTS TAB -->
@@ -579,7 +626,10 @@ input,select,textarea{font-family:inherit;}
     <div class="section-head"><h2>Insights</h2></div>
 
     <div class="insight-card">
-      <h3>Spend by category</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+        <h3 style="margin-bottom:0;">Spend by category</h3>
+        <button class="link-btn" onclick="shareInsightChart()">↗ Share PNG</button>
+      </div>
       <div class="period-chips" id="insightChips">
         <button data-period="month" class="on" onclick="setInsightPeriod('month')">This month</button>
         <button data-period="3m" onclick="setInsightPeriod('3m')">3 months</button>
@@ -819,6 +869,19 @@ input,select,textarea{font-family:inherit;}
   </div>
 </div>
 
+
+<!-- ============ SIMPLE CALCULATOR ============ -->
+<div class="overlay" id="calcOverlay"><div class="modal">
+<button class="close-x" onclick="closeModal('calcOverlay')">✕</button><h3>🧮 Simple Calculator</h3>
+<input id="calcDisplay" class="mono" readonly value="0" style="width:100%;font-size:28px;text-align:right;padding:14px;border:1px solid var(--paper-line);border-radius:12px;background:var(--white);margin-bottom:12px;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+<button class="btn ghost" onclick="calcClear()">C</button><button class="btn ghost" onclick="calcBack()">⌫</button><button class="btn ghost" onclick="calcPercent()">%</button><button class="btn ghost" onclick="calcPress('/')">÷</button>
+<button class="btn ghost" onclick="calcPress('7')">7</button><button class="btn ghost" onclick="calcPress('8')">8</button><button class="btn ghost" onclick="calcPress('9')">9</button><button class="btn ghost" onclick="calcPress('*')">×</button>
+<button class="btn ghost" onclick="calcPress('4')">4</button><button class="btn ghost" onclick="calcPress('5')">5</button><button class="btn ghost" onclick="calcPress('6')">6</button><button class="btn ghost" onclick="calcPress('-')">−</button>
+<button class="btn ghost" onclick="calcPress('1')">1</button><button class="btn ghost" onclick="calcPress('2')">2</button><button class="btn ghost" onclick="calcPress('3')">3</button><button class="btn ghost" onclick="calcPress('+')">+</button>
+<button class="btn ghost" onclick="calcPress('0')">0</button><button class="btn ghost" onclick="calcPress('.')">.</button><button class="btn primary" onclick="calcEquals()">=</button><button class="btn primary" onclick="useCalculatorAmount()">Use amount</button>
+</div></div></div>
+
 <script>
 /* =========================================================================
    FIREBASE CONFIG (Connected to MoneyPurse)
@@ -857,7 +920,8 @@ let state = {
   accounts: [],
   categories: [],
   transactions: [],
-  shoppingList: []
+  shoppingList: [],
+  shoppingTrip: {shops:[]}
 };
 const DEFAULT_CATEGORIES = [
   {id: uid(), name:'Food & Dining', subs:['Groceries','Restaurants','Swiggy/Zomato','Snacks']},
@@ -1344,15 +1408,43 @@ function applyShoppingHistoryToTx(item){
   if(hint){hint.textContent='Based on last purchase — please review category, sub-category, payment account, shop and amount before saving.';hint.classList.add('show');}
   return true;
 }
+
+let editingShoppingId='';
+function editShoppingItem(id){
+ const i=state.shoppingList.find(x=>x.id===id); if(!i)return;
+ editingShoppingId=id;
+ document.getElementById('shopItem').value=i.item||'';
+ document.getElementById('shopQty').value=i.qty||'';
+ document.getElementById('shopUnit').value=i.unit||'';
+ document.getElementById('shopRate').value=i.rate||'';
+ document.getElementById('shopRateUnit').value=i.rateUnit||'';
+ document.getElementById('shopEstimate').value=Number(i.actual)||Number(i.estimate)||'';
+ document.getElementById('shopStore').value=i.store||'';
+ document.getElementById('shopNote').value=i.note||'';
+ const b=document.querySelector('.shop-actions .btn.primary'); if(b)b.textContent='Save item';
+ document.getElementById('shopItem').focus();
+}
+
 function addShoppingItem(){
   const item=document.getElementById('shopItem').value.trim();
   if(!item){ document.getElementById('shopItem').focus(); return; }
   const qty=parseFloat(document.getElementById('shopQty').value)||0;
   const estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
-  state.shoppingList.push({id:uid(),item,qty,unit:document.getElementById('shopUnit').value,estimate,actual:0,store:document.getElementById('shopStore').value.trim(),note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',createdAt:new Date().toISOString()});
+  const rate=parseFloat(document.getElementById('shopRate').value)||0;
+  const rateUnit=document.getElementById('shopRateUnit').value||'';
+  const data={item,qty,unit:document.getElementById('shopUnit').value,estimate,rate,rateUnit,store:document.getElementById('shopStore').value.trim(),note:document.getElementById('shopNote').value.trim()};
+  if(editingShoppingId){
+    const old=state.shoppingList.find(x=>x.id===editingShoppingId);
+    if(old) Object.assign(old,data);
+    editingShoppingId='';
+    const b=document.querySelector('.shop-actions .btn.primary'); if(b)b.textContent='+ Add to list';
+  } else {
+    state.shoppingList.push({id:uid(),...data,actual:0,done:false,accountId:'',paymentMethod:'',txId:'',createdAt:new Date().toISOString()});
+  }
   localSave();
-  ['shopItem','shopQty','shopEstimate','shopStore','shopNote'].forEach(id=>document.getElementById(id).value='');
+  ['shopItem','shopQty','shopEstimate','shopRate','shopStore','shopNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('shopUnit').value='';
+  document.getElementById('shopRateUnit').value='';
   renderShoppingList(); document.getElementById('shopItem').focus();
 }
 function toggleShoppingItem(id){
@@ -1368,10 +1460,44 @@ function buyAgainShopping(id){
   const x=state.shoppingList.find(i=>i.id===id); if(!x)return; state.shoppingList.push({...x,id:uid(),done:false,actual:0,purchasedAt:'',accountId:'',paymentMethod:'',txId:'',createdAt:new Date().toISOString()}); localSave(); renderShoppingList();
 }
 
+
+let pendingShoppingBatchIds = [];
+
+function shoppingCalcText(i){
+  const qty=Number(i.qty)||0, rate=Number(i.rate)||0, total=Number(i.actual)||Number(i.estimate)||0;
+  if(rate && qty && i.rateUnit && i.unit){
+    return `${i.item} ₹${rate.toLocaleString('en-IN',{maximumFractionDigits:2})}/${i.rateUnit} × ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
+  }
+  if(qty && i.unit) return `${i.item} ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
+  return `${i.item} = ${inr(total)}`;
+}
+
+function shoppingBatchToKhata(){
+  const items=state.shoppingList.filter(i=>i.done && !i.txId);
+  if(!items.length){ alert('No purchased items waiting to be added to Khata.'); return; }
+  pendingShoppingId='';
+  pendingShoppingBatchIds=items.map(i=>i.id);
+  openTxModal(); setTxType('debit');
+  const total=items.reduce((sum,i)=>sum+(Number(i.actual)||Number(i.estimate)||0),0);
+  document.getElementById('txAmount').value=Math.round(total*100)/100;
+  document.getElementById('txNote').value=items.map(shoppingCalcText).join(' · ');
+  const stores=[...new Set(items.map(i=>(i.store||'').trim()).filter(Boolean))];
+  document.getElementById('txShop').value=stores.length===1?stores[0]:'';
+  // Do not silently inherit a category such as Apparels for a mixed shopping bill.
+  const cat=document.getElementById('txCategory');
+  cat.value=''; cat.dataset.previous='';
+  populateSubcatOptions('');
+  document.getElementById('txItemName').value='';
+  document.getElementById('txQty').value='';
+  document.getElementById('txUnit').value='';
+  setItemFieldsVisible(stores.length===1);
+}
+
 function clearPurchasedShopping(){
   const n=state.shoppingList.filter(i=>i.done).length; if(!n)return; if(!confirm(`Clear ${n} purchased item${n===1?'':'s'}?`))return; state.shoppingList=state.shoppingList.filter(i=>!i.done); localSave(); renderShoppingList();
 }
 function shoppingToKhata(id){
+  pendingShoppingBatchIds=[];
   const x=state.shoppingList.find(i=>i.id===id); if(!x)return;
   pendingShoppingId=id;
   if(x.txId && state.transactions.some(t=>t.id===x.txId)){ openTxModal(x.txId); return; }
@@ -1395,8 +1521,8 @@ function shoppingPaymentText(i){
   return '';
 }
 function exportShoppingCSV(){
-  const rows=[['Status','Item','Qty','Unit','Category','Sub-category','Estimated','Actual','Shop','Payment Method','Purchased At','Notes']];
-  state.shoppingList.forEach(i=>rows.push([i.done?'Purchased':'To Buy',i.item||'',i.qty||'',i.unit||'',(state.categories.find(c=>c.id===i.categoryId)||{}).name||'',i.subcategory||'',Number(i.estimate)||0,Number(i.actual)||0,i.store||'',shoppingPaymentText(i),i.purchasedAt?new Date(i.purchasedAt).toLocaleString('en-IN'):'',i.note||'']));
+  const rows=[['Status','Item','Qty','Unit','Rate','Rate Unit','Category','Sub-category','Estimated','Actual','Shop','Payment Method','Purchased At','Notes']];
+  state.shoppingList.forEach(i=>rows.push([i.done?'Purchased':'To Buy',i.item||'',i.qty||'',i.unit||'',Number(i.rate)||'',i.rateUnit||'',(state.categories.find(c=>c.id===i.categoryId)||{}).name||'',i.subcategory||'',Number(i.estimate)||0,Number(i.actual)||0,i.store||'',shoppingPaymentText(i),i.purchasedAt?new Date(i.purchasedAt).toLocaleString('en-IN'):'',i.note||'']));
   const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=`Khata_Shopping_${timestampYYMMDDHHMM()}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1415,7 +1541,7 @@ function renderShoppingList(){
   document.getElementById('shopEstTotal').textContent=inr(est);
   document.getElementById('shopOpenTotal').textContent=est?inr(est):'';
   document.getElementById('shopDoneCount').textContent=done.length?`${done.length} purchased`:'';
-  const row=i=>{ const pay=shoppingPaymentText(i); return `<div class="shop-row ${i.done?'done':''}"><div class="shop-top"><input class="shop-check" type="checkbox" ${i.done?'checked':''} onchange="toggleShoppingItem('${i.id}')"><div class="shop-main"><div class="shop-name">${shoppingEscape(i.item)}</div><div class="shop-meta">${i.qty?shoppingEscape(i.qty)+' '+shoppingEscape(i.unit||''):''}${i.store?`${i.qty?' · ':''}${shoppingEscape(i.store)}`:''}${pay?` · Paid via ${shoppingEscape(pay)}`:''}${i.note?` · ${shoppingEscape(i.note)}`:''}</div></div><div class="shop-price">${i.done&&i.actual?inr(i.actual):(i.estimate?inr(i.estimate):'')}</div></div><div class="shop-row-actions">${i.done?`<label style="font-size:12px;color:var(--muted)">Actual ₹ <input class="shop-mini-input" type="number" inputmode="decimal" value="${i.actual||''}" onchange="updateShoppingActual('${i.id}',this.value)"></label><button onclick="shoppingToKhata('${i.id}')">${i.txId?'✎ Edit Khata':'₹ Add to Khata'}</button><button onclick="buyAgainShopping('${i.id}')">↻ Buy again</button>`:`<button onclick="shoppingToKhata('${i.id}')">✓ Buy / Add to Khata</button>`}<button onclick="deleteShoppingItem('${i.id}')">Delete</button></div></div>`; };
+  const row=i=>{ const pay=shoppingPaymentText(i); return `<div class="shop-row ${i.done?'done':''}"><div class="shop-top"><input class="shop-check" type="checkbox" ${i.done?'checked':''} onchange="toggleShoppingItem('${i.id}')"><div class="shop-main"><div class="shop-name">${shoppingEscape(i.item)}</div><div class="shop-meta">${i.qty?shoppingEscape(i.qty)+' '+shoppingEscape(i.unit||''):''}${i.store?`${i.qty?' · ':''}${shoppingEscape(i.store)}`:''}${pay?` · Paid via ${shoppingEscape(pay)}`:''}${i.rate&&i.qty&&i.rateUnit?` · ${shoppingEscape('₹'+Number(i.rate).toLocaleString('en-IN',{maximumFractionDigits:2})+'/'+i.rateUnit+' × '+Number(i.qty).toLocaleString('en-IN',{maximumFractionDigits:2})+' '+(i.unit||'')+' = '+inr(Number(i.actual)||Number(i.estimate)||0))}`:''}${i.note?` · ${shoppingEscape(i.note)}`:''}</div></div><div class="shop-price">${i.done&&i.actual?inr(i.actual):(i.estimate?inr(i.estimate):'')}</div></div><div class="shop-row-actions">${i.done?`<label style="font-size:12px;color:var(--muted)">Actual ₹ <input class="shop-mini-input" type="number" inputmode="decimal" value="${i.actual||''}" onchange="updateShoppingActual('${i.id}',this.value)"></label><button onclick="shoppingToKhata('${i.id}')">${i.txId?'✎ Edit Khata':'₹ Add to Khata'}</button><button onclick="buyAgainShopping('${i.id}')">↻ Buy again</button>`:`<button onclick="shoppingToKhata('${i.id}')">✓ Buy / Add to Khata</button>`}<button onclick="deleteShoppingItem('${i.id}')">Delete</button></div></div>`; };
   openEl.innerHTML=open.length?open.map(row).join(''):'<div class="shop-empty">Your shopping list is empty.</div>';
   document.getElementById('shoppingDoneList').innerHTML=done.length?done.map(row).join(''):'<div class="shop-empty" style="padding-top:8px">No purchased items yet.</div>';
 }
@@ -1790,6 +1916,77 @@ function renderPieChart(){
       <span class="legend-name">${escapeHtml(l)}</span>
       <span class="legend-amt">${inr(byCat[l])} · ${total?Math.round(byCat[l]/total*100):0}%</span>
     </div>`).join('');
+}
+
+
+function insightPeriodFileToken(){
+  const d=new Date();
+  if(insightPeriod==='month') return String(d.getFullYear()).slice(-2)+String(d.getMonth()+1).padStart(2,'0');
+  if(insightPeriod==='3m') return '3M';
+  if(insightPeriod==='6m') return '6M';
+  return 'All';
+}
+function insightPeriodDisplay(){
+  const d=new Date();
+  if(insightPeriod==='month') return d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  if(insightPeriod==='3m') return 'Last 3 Months';
+  if(insightPeriod==='6m') return 'Last 6 Months';
+  return 'All Records';
+}
+function insightChartFilename(){
+  const d=new Date(), pad=n=>String(n).padStart(2,'0');
+  const stamp=String(d.getFullYear()).slice(-2)+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes());
+  return `Khata_${insightPeriodFileToken()}_Category_${stamp}.png`;
+}
+async function buildInsightShareBlob(){
+  const source=document.getElementById('pieChart');
+  if(!source || !pieChartInstance) throw new Error('No chart available');
+  const labels=pieChartInstance.data.labels||[];
+  const vals=(pieChartInstance.data.datasets[0]&&pieChartInstance.data.datasets[0].data)||[];
+  const total=vals.reduce((a,b)=>a+Number(b||0),0);
+  const W=1080, pad=70, chartSize=620;
+  const rowH=44, legendH=Math.max(90,labels.length*rowH+30), H=180+chartSize+legendH+100;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d');
+  x.fillStyle='#FFFDF8';x.fillRect(0,0,W,H);
+  x.fillStyle='#1C2A44';x.font='700 42px Arial';x.fillText('Khata — Spend by Category',pad,72);
+  x.fillStyle='#5F6673';x.font='28px Arial';x.fillText(insightPeriodDisplay(),pad,118);
+  x.font='22px Arial';x.fillText('Generated '+new Date().toLocaleString('en-IN'),pad,154);
+  // Copy the already-rendered Chart.js canvas; no Insights calculation is changed.
+  x.drawImage(source,(W-chartSize)/2,180,chartSize,chartSize);
+  let y=180+chartSize+45;
+  x.font='25px Arial';
+  labels.forEach((label,i)=>{
+    const col=(pieChartInstance.data.datasets[0].backgroundColor||[])[i]||'#777';
+    x.fillStyle=col;x.fillRect(pad,y-22,24,24);
+    x.fillStyle='#1C2A44';x.fillText(String(label),pad+42,y);
+    const pct=total?Math.round(Number(vals[i]||0)/total*100):0;
+    const amount=inr(Number(vals[i]||0));
+    const right=`${amount} · ${pct}%`;
+    const m=x.measureText(right).width;
+    x.fillText(right,W-pad-m,y);
+    y+=rowH;
+  });
+  x.fillStyle='#5F6673';x.font='20px Arial';x.fillText('Khata Insights',pad,H-45);
+  return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('PNG creation failed')),'image/png'));
+}
+async function shareInsightChart(){
+  if(!pieChartInstance){alert('No spending chart is available for this period.');return;}
+  try{
+    const blob=await buildInsightShareBlob();
+    const name=insightChartFilename();
+    const file=new File([blob],name,{type:'image/png'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Khata — Spend by Category',text:insightPeriodDisplay()});
+      return;
+    }
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }catch(err){
+    if(err && err.name==='AbortError') return;
+    console.error(err);alert('Unable to share this chart. Please try again.');
+  }
 }
 
 function renderAvgTable(){
@@ -2198,6 +2395,26 @@ function saveTx(){
       shoppingItem.purchasedAt = shoppingItem.purchasedAt || new Date().toISOString();
     }
     pendingShoppingId = '';
+  }
+
+  // If multiple purchased Shopping items were combined, link every item to this one Khata transaction.
+  if (pendingShoppingBatchIds.length) {
+    const acc = state.accounts.find(a=>a.id===selectedAccount);
+    pendingShoppingBatchIds.forEach(shopId=>{
+      const shoppingItem=state.shoppingList.find(i=>i.id===shopId);
+      if(!shoppingItem) return;
+      shoppingItem.done=true;
+      shoppingItem.accountId=selectedAccount;
+      shoppingItem.paymentMethod=acc ? accountLabel(acc) : '';
+      shoppingItem.txId=id;
+      shoppingItem.categoryId=selectedCategory;
+      shoppingItem.subcategory=selectedSubcategory;
+      shoppingItem.store=tx.shop || shoppingItem.store || '';
+      shoppingItem.purchasedAt=shoppingItem.purchasedAt || new Date().toISOString();
+    });
+    pendingShoppingBatchIds=[];
+    const billStore=document.getElementById('shopStore'); if(billStore) billStore.value='';
+    const billDate=document.getElementById('shopBillDate'); if(billDate) billDate.value=localDateStr();
   }
   localSave();
   renderAll();
@@ -2752,6 +2969,284 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err));
   });
 }
+
+/* ===== Calculator + shopping rate helper (repaired) ===== */
+function calculateShoppingEstimate(){
+ const qty=Number(document.getElementById('shopQty')?.value)||0, unit=document.getElementById('shopUnit')?.value||'';
+ const rate=Number(document.getElementById('shopRate')?.value)||0, ru=document.getElementById('shopRateUnit')?.value||'', out=document.getElementById('shopEstimate');
+ if(!out||!qty||!rate||!unit||!ru)return;
+ const base=(v,u)=>u==='kg'?['mass',v*1000]:u==='g'?['mass',v]:u==='L'?['vol',v*1000]:u==='ml'?['vol',v]:[u,v];
+ const q=base(qty,unit),r=base(1,ru); if(q[0]!==r[0])return;
+ out.value=Math.round(rate*q[1]/r[1]*100)/100;
+}
+let calcExpr='';
+function openCalculator(){calcExpr='';document.getElementById('calcDisplay').value='0';document.getElementById('calcOverlay').classList.add('show');}
+function calcPress(v){calcExpr+=v;document.getElementById('calcDisplay').value=calcExpr.replace(/\*/g,'×').replace(/\//g,'÷');}
+function calcClear(){calcExpr='';document.getElementById('calcDisplay').value='0';}
+function calcBack(){calcExpr=calcExpr.slice(0,-1);document.getElementById('calcDisplay').value=calcExpr||'0';}
+function calcPercent(){try{let v=Function('"use strict";return ('+(calcExpr||'0')+')')()/100;calcExpr=String(v);document.getElementById('calcDisplay').value=calcExpr;}catch(e){}}
+function calcEquals(){try{if(!/^[0-9+\-*/.() ]+$/.test(calcExpr))return;let v=Function('"use strict";return ('+calcExpr+')')();if(Number.isFinite(v)){calcExpr=String(Math.round(v*1e8)/1e8);document.getElementById('calcDisplay').value=calcExpr;}}catch(e){}}
+function useCalculatorAmount(){calcEquals();let v=Number(calcExpr);if(!Number.isFinite(v))return;document.getElementById('shopEstimate').value=Math.round(v*100)/100;closeModal('calcOverlay');}
+
+
+/* ===== Seamless Shopping Bill workflow ===== */
+function syncShoppingRateUnit(){
+  const u=document.getElementById('shopUnit').value;
+  const r=document.getElementById('shopRateUnit');
+  if(u && [...r.options].some(o=>o.value===u)) r.value=u;
+}
+function initShoppingBillHeader(){
+  const d=document.getElementById('shopBillDate');
+  if(d && !d.value) d.value=localDateStr();
+}
+function addShoppingItem(){
+  initShoppingBillHeader();
+  const item=document.getElementById('shopItem').value.trim();
+  if(!item){document.getElementById('shopItem').focus();return;}
+  const qty=parseFloat(document.getElementById('shopQty').value)||0;
+  const unit=document.getElementById('shopUnit').value;
+  const rate=parseFloat(document.getElementById('shopRate').value)||0;
+  const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
+  let estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
+  if(!estimate && qty && rate) { calculateShoppingEstimate(); estimate=parseFloat(document.getElementById('shopEstimate').value)||0; }
+  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:'',note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',createdAt:new Date().toISOString()};
+  if(editingShoppingId){
+    const old=state.shoppingList.find(x=>x.id===editingShoppingId);
+    if(old) Object.assign(old,data);
+    editingShoppingId='';
+    const b=document.querySelector('.shop-actions .btn.primary');if(b)b.textContent='+ Add item';
+  }else state.shoppingList.push({id:uid(),...data});
+  localSave();
+  ['shopItem','shopQty','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';
+  renderShoppingList();document.getElementById('shopItem').focus();
+}
+function editShoppingItem(id){
+  const i=state.shoppingList.find(x=>x.id===id);if(!i||i.txId)return;
+  editingShoppingId=id;
+  document.getElementById('shopItem').value=i.item||'';
+  document.getElementById('shopQty').value=i.qty||'';
+  document.getElementById('shopUnit').value=i.unit||'';
+  document.getElementById('shopRate').value=i.rate||'';
+  document.getElementById('shopRateUnit').value=i.rateUnit||'';
+  document.getElementById('shopEstimate').value=i.estimate||'';
+  document.getElementById('shopNote').value=i.note||'';
+  const b=document.querySelector('.shop-actions .btn.primary');if(b)b.textContent='Save item';
+  document.getElementById('shopItem').focus();
+}
+function renderShoppingList(){
+  initShoppingBillHeader();
+  const items=state.shoppingList.filter(i=>!i.txId);
+  const total=items.reduce((s,i)=>s+(Number(i.estimate)||0),0);
+  document.getElementById('shopOpenCount').textContent=`${items.length} item${items.length===1?'':'s'}`;
+  document.getElementById('shopEstTotal').textContent=inr(total);
+  const list=document.getElementById('shoppingOpenList');
+  list.innerHTML=items.length?items.map(i=>{
+    const calc=shoppingCalcText(i);
+    return `<div class="shop-row"><div class="shop-top"><div class="shop-main"><div class="shop-name">${shoppingEscape(i.item)}</div><div class="shop-meta">${shoppingEscape(calc)}${i.note?' · '+shoppingEscape(i.note):''}</div></div><div class="shop-price">${inr(i.estimate)}</div></div><div class="shop-row-actions"><button onclick="editShoppingItem('${i.id}')">✎ Edit</button><button onclick="deleteShoppingItem('${i.id}')">Delete</button></div></div>`;
+  }).join(''):'<div class="shop-empty">Add items for this bill.</div>';
+}
+function shoppingBillToKhata(){
+  const items=state.shoppingList.filter(i=>!i.txId);
+  if(!items.length){alert('Add at least one item first.');return;}
+  const store=document.getElementById('shopStore').value.trim();
+  if(!store){alert('Enter the shop / store once for this bill.');document.getElementById('shopStore').focus();return;}
+  const date=document.getElementById('shopBillDate').value||localDateStr();
+  pendingShoppingId='';
+  pendingShoppingBatchIds=items.map(i=>i.id);
+  openTxModal();setTxType('debit');
+  document.getElementById('txDate').value=date;
+  document.getElementById('txAmount').value=Math.round(items.reduce((s,i)=>s+(Number(i.estimate)||0),0)*100)/100;
+  document.getElementById('txNote').value=items.map(shoppingCalcText).join(' · ');
+  document.getElementById('txShop').value=store;
+  document.getElementById('txItemName').value='';
+  document.getElementById('txQty').value='';document.getElementById('txUnit').value='';
+  const cat=document.getElementById('txCategory');cat.value='';cat.dataset.previous='';populateSubcatOptions('');
+  setItemFieldsVisible(true);
+}
+function clearCurrentShoppingBill(){
+  const items=state.shoppingList.filter(i=>!i.txId);
+  if(!items.length)return;
+  if(!confirm(`Clear this bill with ${items.length} item${items.length===1?'':'s'}?`))return;
+  state.shoppingList=state.shoppingList.filter(i=>i.txId);
+  localSave();
+  document.getElementById('shopStore').value='';
+  document.getElementById('shopBillDate').value=localDateStr();
+  renderShoppingList();
+}
+
+
+/* ===== Shopping Trip: multiple shops, multiple items, one-click posting ===== */
+let activeShoppingShopId='';
+let shoppingTripPosting=null;
+
+function ensureShoppingTripState(){
+  if(!state.shoppingTrip || typeof state.shoppingTrip!=='object') state.shoppingTrip={shops:[]};
+  if(!Array.isArray(state.shoppingTrip.shops)) state.shoppingTrip.shops=[];
+  initShoppingBillHeader();
+}
+function addShoppingTripShop(){
+  ensureShoppingTripState();
+  const name=prompt('Shop / store name');
+  if(!name || !name.trim()) return;
+  const shop={id:uid(),name:name.trim(),accountId:'',time:new Date().toTimeString().slice(0,5)};
+  state.shoppingTrip.shops.push(shop);
+  activeShoppingShopId=shop.id;
+  localSave(); renderShoppingList(); openShoppingTripShop(shop.id);
+}
+function removeShoppingTripShop(id){
+  ensureShoppingTripState();
+  const hasItems=state.shoppingList.some(i=>!i.txId && i.tripShopId===id);
+  if(hasItems && !confirm('Remove this shop and its unposted items from the trip?')) return;
+  state.shoppingList=state.shoppingList.filter(i=>i.txId || i.tripShopId!==id);
+  state.shoppingTrip.shops=state.shoppingTrip.shops.filter(s=>s.id!==id);
+  if(activeShoppingShopId===id) activeShoppingShopId='';
+  localSave(); renderShoppingList();
+}
+function openShoppingTripShop(id){
+  ensureShoppingTripState();
+  const s=state.shoppingTrip.shops.find(x=>x.id===id); if(!s)return;
+  activeShoppingShopId=id;
+  document.getElementById('shopStore').value=s.name;
+  document.getElementById('activeShoppingShopName').textContent=s.name;
+  document.getElementById('shoppingItemEditor').style.display='block';
+  document.getElementById('shopItem').focus();
+}
+function closeShoppingItemEditor(){
+  activeShoppingShopId='';
+  document.getElementById('shoppingItemEditor').style.display='none';
+}
+function updateTripShop(id,field,value){
+  ensureShoppingTripState();
+  const s=state.shoppingTrip.shops.find(x=>x.id===id);if(!s)return;
+  s[field]=value; localSave(); renderShoppingList();
+}
+function addShoppingItem(){
+  ensureShoppingTripState();
+  if(!activeShoppingShopId){alert('Choose or add a shop first.');return;}
+  const shop=state.shoppingTrip.shops.find(s=>s.id===activeShoppingShopId);
+  if(!shop)return;
+  const item=document.getElementById('shopItem').value.trim();
+  if(!item){document.getElementById('shopItem').focus();return;}
+  const qty=parseFloat(document.getElementById('shopQty').value)||0;
+  const unit=document.getElementById('shopUnit').value;
+  const rate=parseFloat(document.getElementById('shopRate').value)||0;
+  const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
+  let estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
+  if(!estimate && qty && rate){calculateShoppingEstimate();estimate=parseFloat(document.getElementById('shopEstimate').value)||0;}
+  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,createdAt:new Date().toISOString()};
+  if(editingShoppingId){
+    const old=state.shoppingList.find(x=>x.id===editingShoppingId);
+    if(old)Object.assign(old,data);
+    editingShoppingId='';
+    const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='+ Add item';
+  }else state.shoppingList.push({id:uid(),...data});
+  localSave();
+  ['shopItem','shopQty','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';
+  renderShoppingList();openShoppingTripShop(shop.id);
+}
+function editShoppingItem(id){
+  const i=state.shoppingList.find(x=>x.id===id);if(!i||i.txId)return;
+  if(i.tripShopId)openShoppingTripShop(i.tripShopId);
+  editingShoppingId=id;
+  document.getElementById('shopItem').value=i.item||'';
+  document.getElementById('shopQty').value=i.qty||'';
+  document.getElementById('shopUnit').value=i.unit||'';
+  document.getElementById('shopRate').value=i.rate||'';
+  document.getElementById('shopRateUnit').value=i.rateUnit||'';
+  document.getElementById('shopEstimate').value=i.estimate||'';
+  document.getElementById('shopNote').value=i.note||'';
+  const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='Save item';
+}
+function renderShoppingList(){
+  ensureShoppingTripState();
+  // Migrate any current unposted single-shop items into a shop card, preserving data.
+  const legacy=state.shoppingList.filter(i=>!i.txId && !i.tripShopId);
+  legacy.forEach(i=>{
+    const nm=(i.store||'Shopping').trim()||'Shopping';
+    let s=state.shoppingTrip.shops.find(x=>x.name.toLowerCase()===nm.toLowerCase());
+    if(!s){s={id:uid(),name:nm,accountId:i.accountId||'',time:''};state.shoppingTrip.shops.push(s);}
+    i.tripShopId=s.id;i.store=s.name;
+  });
+  const unposted=state.shoppingList.filter(i=>!i.txId);
+  const total=unposted.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
+  const cnt=document.getElementById('shopOpenCount'),tot=document.getElementById('shopEstTotal');
+  if(cnt)cnt.textContent=`${unposted.length} item${unposted.length===1?'':'s'}`;
+  if(tot)tot.textContent=inr(total);
+  const host=document.getElementById('shoppingTripShops');if(!host)return;
+  const activeIds=new Set(unposted.map(i=>i.tripShopId));
+  const shops=state.shoppingTrip.shops.filter(s=>activeIds.has(s.id) || s.id===activeShoppingShopId || !unposted.length);
+  host.innerHTML=shops.length?shops.map(s=>{
+    const items=unposted.filter(i=>i.tripShopId===s.id);
+    const subtotal=items.reduce((z,i)=>z+(Number(i.estimate)||Number(i.actual)||0),0);
+    const accOpts='<option value="">Pay from…</option>'+state.accounts.filter(a=>a.active!==false).map(a=>`<option value="${a.id}" ${s.accountId===a.id?'selected':''}>${shoppingEscape(accountLabel(a))}</option>`).join('');
+    return `<div class="trip-shop-card">
+      <div class="trip-shop-head"><div class="trip-shop-name">${shoppingEscape(s.name)}</div><b class="mono">${inr(subtotal)}</b></div>
+      <div class="trip-shop-meta">${items.length} item${items.length===1?'':'s'}</div>
+      <div class="trip-shop-items">${items.length?items.map(i=>`<div class="trip-shop-item"><span>${shoppingEscape(shoppingCalcText(i))}</span><span><button class="icon-btn" onclick="editShoppingItem('${i.id}')">✎</button> <button class="icon-btn" onclick="deleteShoppingItem('${i.id}')">×</button></span></div>`).join(''):'<div class="shop-empty" style="padding:8px">No items yet.</div>'}</div>
+      <div class="trip-shop-controls"><input type="time" value="${shoppingEscape(s.time||'')}" onchange="updateTripShop('${s.id}','time',this.value)"><select onchange="updateTripShop('${s.id}','accountId',this.value)">${accOpts}</select></div>
+      <div class="trip-shop-actions"><button onclick="openShoppingTripShop('${s.id}')">+ Add / Edit Items</button><button onclick="removeShoppingTripShop('${s.id}')">Remove Shop</button></div>
+    </div>`;
+  }).join(''):'<div class="shop-empty">Tap “+ Add Shop” to start this shopping trip.</div>';
+  localSave();
+}
+function clearCurrentShoppingBill(){
+  ensureShoppingTripState();
+  const items=state.shoppingList.filter(i=>!i.txId);
+  if((items.length||state.shoppingTrip.shops.length) && !confirm('Clear the current shopping trip?'))return;
+  state.shoppingList=state.shoppingList.filter(i=>i.txId);
+  state.shoppingTrip={shops:[]};activeShoppingShopId='';editingShoppingId='';
+  localSave();closeShoppingItemEditor();
+  document.getElementById('shopBillDate').value=localDateStr();renderShoppingList();
+}
+function postShoppingTripToKhata(){
+  ensureShoppingTripState();
+  const items=state.shoppingList.filter(i=>!i.txId);
+  if(!items.length){alert('Add at least one item first.');return;}
+  const groups=state.shoppingTrip.shops.map(s=>({shop:s,items:items.filter(i=>i.tripShopId===s.id)})).filter(g=>g.items.length);
+  const missing=groups.find(g=>!g.shop.accountId);
+  if(missing){alert(`Choose payment account for ${missing.shop.name}.`);return;}
+  shoppingTripPosting={groups,index:0,date:document.getElementById('shopBillDate').value||localDateStr()};
+  openNextShoppingTripTransaction();
+}
+function openNextShoppingTripTransaction(){
+  if(!shoppingTripPosting)return;
+  if(shoppingTripPosting.index>=shoppingTripPosting.groups.length){
+    shoppingTripPosting=null;state.shoppingTrip={shops:[]};activeShoppingShopId='';localSave();closeShoppingItemEditor();renderShoppingList();
+    alert('Shopping trip posted to Khata.');
+    return;
+  }
+  const g=shoppingTripPosting.groups[shoppingTripPosting.index];
+  pendingShoppingId='';pendingShoppingBatchIds=g.items.map(i=>i.id);
+  openTxModal();setTxType('debit');
+  document.getElementById('txDate').value=shoppingTripPosting.date;
+  if(g.shop.time)document.getElementById('txTime').value=g.shop.time;
+  document.getElementById('txAccount').value=g.shop.accountId;
+  document.getElementById('txAmount').value=Math.round(g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0)*100)/100;
+  document.getElementById('txNote').value=g.items.map(shoppingCalcText).join(' · ');
+  document.getElementById('txShop').value=g.shop.name;
+  document.getElementById('txItemName').value='';document.getElementById('txQty').value='';document.getElementById('txUnit').value='';
+  const cat=document.getElementById('txCategory');cat.value='';cat.dataset.previous='';populateSubcatOptions('');
+  setItemFieldsVisible(true);
+}
+/* Hook only the end of successful saveTx: if a trip is being posted, advance to next shop.
+   Existing saveTx remains the source of truth for ledger/account/category validation and cloud queue. */
+const _khataOriginalSaveTx=saveTx;
+saveTx=function(){
+  const wasTrip=!!shoppingTripPosting;
+  const before=shoppingTripPosting?shoppingTripPosting.index:-1;
+  const beforeCount=state.transactions.length;
+  _khataOriginalSaveTx();
+  if(wasTrip && shoppingTripPosting && shoppingTripPosting.index===before){
+    // A successful new transaction closes the modal and links the pending item batch.
+    if(state.transactions.length>beforeCount && !document.getElementById('txOverlay').classList.contains('show')){
+      shoppingTripPosting.index++;
+      setTimeout(openNextShoppingTripTransaction,0);
+    }
+  }
+};
+
 </script>
 </body>
 </html>
