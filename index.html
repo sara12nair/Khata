@@ -2127,8 +2127,14 @@ function populateSubcatOptions(selected){
   const cat = state.categories.find(c=>c.id===catId);
   const subSel = document.getElementById('txSubcategory');
   const options = (cat && cat.subs || []).slice().sort(alphaCompare).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  subSel.innerHTML = (options || '<option value="">—</option>') + (cat ? '<option value="__add__">＋ Add new sub-category…</option>' : '');
-  if (selected && (cat.subs||[]).includes(selected)) subSel.value = selected;
+  // Sub-category is optional. Always offer None first and default to it
+  // unless an existing/suggested sub-category is explicitly supplied.
+  subSel.innerHTML = '<option value="">— None —</option>' + options + (cat ? '<option value="__add__">＋ Add new sub-category…</option>' : '');
+  if (selected && cat && (cat.subs||[]).includes(selected)) {
+    subSel.value = selected;
+  } else {
+    subSel.value = '';
+  }
   subSel.dataset.previous = subSel.value;
 }
 
