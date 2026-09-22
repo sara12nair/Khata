@@ -581,7 +581,7 @@ input,select,textarea{font-family:inherit;}
         <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
         <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
         <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
-        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹">
+        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹" oninput="this.dataset.manual=this.value!==''?'1':''">
       </div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
       <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--ink-soft)"></div>
@@ -2976,8 +2976,11 @@ if ('serviceWorker' in navigator) {
 function calculateShoppingEstimate(){
  const qty=Number(document.getElementById('shopQty')?.value)||0, unit=document.getElementById('shopUnit')?.value||'';
  const rate=Number(document.getElementById('shopRate')?.value)||0, ru=document.getElementById('shopRateUnit')?.value||'', out=document.getElementById('shopEstimate');
- if(!out||!qty||!rate)return;
- // Unitless lines (dish, tip, tax, fee, etc.) are valid: Qty defaults to 1 and amount = Qty × Rate.
+ if(!out) return;
+ // A directly entered Amount is authoritative (Tips, Tax, Fees, Delivery, etc.).
+ // Do not overwrite it with Qty × Rate calculations unless the Amount field is cleared.
+ if(out.dataset.manual==='1' && out.value!=='') return;
+ if(!qty||!rate) return;
  if(!unit && !ru){out.value=Math.round(rate*qty*100)/100;return;}
  if(!unit||!ru)return;
  const base=(v,u)=>u==='kg'?['mass',v*1000]:u==='g'?['mass',v]:u==='L'?['vol',v*1000]:u==='ml'?['vol',v]:[u,v];
@@ -2991,7 +2994,7 @@ function calcClear(){calcExpr='';document.getElementById('calcDisplay').value='0
 function calcBack(){calcExpr=calcExpr.slice(0,-1);document.getElementById('calcDisplay').value=calcExpr||'0';}
 function calcPercent(){try{let v=Function('"use strict";return ('+(calcExpr||'0')+')')()/100;calcExpr=String(v);document.getElementById('calcDisplay').value=calcExpr;}catch(e){}}
 function calcEquals(){try{if(!/^[0-9+\-*/.() ]+$/.test(calcExpr))return;let v=Function('"use strict";return ('+calcExpr+')')();if(Number.isFinite(v)){calcExpr=String(Math.round(v*1e8)/1e8);document.getElementById('calcDisplay').value=calcExpr;}}catch(e){}}
-function useCalculatorAmount(){calcEquals();let v=Number(calcExpr);if(!Number.isFinite(v))return;document.getElementById('shopEstimate').value=Math.round(v*100)/100;closeModal('calcOverlay');}
+function useCalculatorAmount(){calcEquals();let v=Number(calcExpr);if(!Number.isFinite(v))return;const out=document.getElementById('shopEstimate');out.value=Math.round(v*100)/100;out.dataset.manual='1';closeModal('calcOverlay');}
 
 
 /* ===== Seamless Shopping Bill workflow ===== */
@@ -3036,6 +3039,7 @@ function editShoppingItem(id){
   document.getElementById('shopRate').value=i.rate||'';
   document.getElementById('shopRateUnit').value=i.rateUnit||'';
   document.getElementById('shopEstimate').value=i.estimate||'';
+  document.getElementById('shopEstimate').dataset.manual=(!Number(i.rate) && Number(i.estimate))?'1':'';
   document.getElementById('shopNote').value=i.note||'';
   const b=document.querySelector('.shop-actions .btn.primary');if(b)b.textContent='Save item';
   document.getElementById('shopItem').focus();
@@ -3124,7 +3128,7 @@ function openShoppingTripShop(id){
     document.getElementById('shopUnit').value='';
     document.getElementById('shopRate').value='';
     document.getElementById('shopRateUnit').value='';
-    document.getElementById('shopEstimate').value='';
+    document.getElementById('shopEstimate').value='';document.getElementById('shopEstimate').dataset.manual='';
     document.getElementById('shopNote').value='';
   }
   document.getElementById('shopItem').focus();
@@ -3161,7 +3165,7 @@ function addShoppingItem(){
   localSave();
   ['shopItem','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('shopQty').value='1';
-  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';
+  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';document.getElementById('shopEstimate').dataset.manual='';
   renderShoppingList();openShoppingTripShop(shop.id);
 }
 function editShoppingItem(id){
@@ -3174,6 +3178,7 @@ function editShoppingItem(id){
   document.getElementById('shopRate').value=i.rate||'';
   document.getElementById('shopRateUnit').value=i.rateUnit||'';
   document.getElementById('shopEstimate').value=i.estimate||'';
+  document.getElementById('shopEstimate').dataset.manual=(!Number(i.rate) && Number(i.estimate))?'1':'';
   document.getElementById('shopNote').value=i.note||'';
   const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='Save item';
 }
