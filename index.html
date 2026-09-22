@@ -577,10 +577,10 @@ input,select,textarea{font-family:inherit;}
       <input id="shopStore" type="hidden">
       <div class="shop-grid">
         <input class="shop-item" id="shopItem" placeholder="Item e.g. Onion" oninput="refreshShoppingHistoryHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();addShoppingItem()}">
-        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Qty" oninput="calculateShoppingEstimate()">
-        <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
+        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" value="1" placeholder="Qty" oninput="calculateShoppingEstimate()">
+        <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
         <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
-        <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="pack">per pack</option><option value="box">per box</option></select>
+        <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
         <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹">
       </div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
@@ -748,7 +748,7 @@ input,select,textarea{font-family:inherit;}
       </div>
       <div class="item-category-hint" id="itemCategoryHint"></div>
       <div style="display:flex;gap:10px;">
-        <div class="field" style="flex:1;"><label>Quantity</label><input id="txQty" type="number" min="0" step="0.01" placeholder="e.g. 5" oninput="updateUnitHint()"></div>
+        <div class="field" style="flex:1;"><label>Quantity</label><input id="txQty" type="number" min="0" step="0.01" value="1" placeholder="e.g. 1" oninput="updateUnitHint()"></div>
         <div class="field" style="flex:1;">
           <label>Unit</label>
           <select id="txUnit" onchange="updateUnitHint()">
@@ -1428,7 +1428,7 @@ function editShoppingItem(id){
 function addShoppingItem(){
   const item=document.getElementById('shopItem').value.trim();
   if(!item){ document.getElementById('shopItem').focus(); return; }
-  const qty=parseFloat(document.getElementById('shopQty').value)||0;
+  const qty=parseFloat(document.getElementById('shopQty').value)||1;
   const estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
   const rate=parseFloat(document.getElementById('shopRate').value)||0;
   const rateUnit=document.getElementById('shopRateUnit').value||'';
@@ -1469,6 +1469,8 @@ function shoppingCalcText(i){
     return `${i.item} ₹${rate.toLocaleString('en-IN',{maximumFractionDigits:2})}/${i.rateUnit} × ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
   }
   if(qty && i.unit) return `${i.item} ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
+  // For unitless one-off lines such as dishes, tips, tax or fees, keep the display clean.
+  if(rate && qty>1) return `${i.item} ₹${rate.toLocaleString('en-IN',{maximumFractionDigits:2})} × ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} = ${inr(total)}`;
   return `${i.item} = ${inr(total)}`;
 }
 
@@ -2210,7 +2212,7 @@ function openTxModal(id){
     populateCategoryOptions();
     document.getElementById('txNote').value = '';
     document.getElementById('txItemName').value = '';
-    document.getElementById('txQty').value = '';
+    document.getElementById('txQty').value = '1';
     document.getElementById('txUnit').value = '';
     document.getElementById('txShop').value = '';
   }
@@ -2974,7 +2976,10 @@ if ('serviceWorker' in navigator) {
 function calculateShoppingEstimate(){
  const qty=Number(document.getElementById('shopQty')?.value)||0, unit=document.getElementById('shopUnit')?.value||'';
  const rate=Number(document.getElementById('shopRate')?.value)||0, ru=document.getElementById('shopRateUnit')?.value||'', out=document.getElementById('shopEstimate');
- if(!out||!qty||!rate||!unit||!ru)return;
+ if(!out||!qty||!rate)return;
+ // Unitless lines (dish, tip, tax, fee, etc.) are valid: Qty defaults to 1 and amount = Qty × Rate.
+ if(!unit && !ru){out.value=Math.round(rate*qty*100)/100;return;}
+ if(!unit||!ru)return;
  const base=(v,u)=>u==='kg'?['mass',v*1000]:u==='g'?['mass',v]:u==='L'?['vol',v*1000]:u==='ml'?['vol',v]:[u,v];
  const q=base(qty,unit),r=base(1,ru); if(q[0]!==r[0])return;
  out.value=Math.round(rate*q[1]/r[1]*100)/100;
@@ -3003,7 +3008,7 @@ function addShoppingItem(){
   initShoppingBillHeader();
   const item=document.getElementById('shopItem').value.trim();
   if(!item){document.getElementById('shopItem').focus();return;}
-  const qty=parseFloat(document.getElementById('shopQty').value)||0;
+  const qty=parseFloat(document.getElementById('shopQty').value)||1;
   const unit=document.getElementById('shopUnit').value;
   const rate=parseFloat(document.getElementById('shopRate').value)||0;
   const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
@@ -3017,7 +3022,8 @@ function addShoppingItem(){
     const b=document.querySelector('.shop-actions .btn.primary');if(b)b.textContent='+ Add item';
   }else state.shoppingList.push({id:uid(),...data});
   localSave();
-  ['shopItem','shopQty','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  ['shopItem','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shopQty').value='1';
   document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';
   renderShoppingList();document.getElementById('shopItem').focus();
 }
@@ -3110,6 +3116,17 @@ function openShoppingTripShop(id){
   document.getElementById('shopStore').value=s.name;
   document.getElementById('activeShoppingShopName').textContent=s.name;
   document.getElementById('shoppingItemEditor').style.display='block';
+  // Fresh item entry must never inherit quantity/unit/rate-unit from the previous line.
+  // Qty starts at 1; unit stays blank for Tips, Tax, Fees, dishes without a useful unit, etc.
+  if(!editingShoppingId){
+    document.getElementById('shopItem').value='';
+    document.getElementById('shopQty').value='1';
+    document.getElementById('shopUnit').value='';
+    document.getElementById('shopRate').value='';
+    document.getElementById('shopRateUnit').value='';
+    document.getElementById('shopEstimate').value='';
+    document.getElementById('shopNote').value='';
+  }
   document.getElementById('shopItem').focus();
 }
 function closeShoppingItemEditor(){
@@ -3128,7 +3145,7 @@ function addShoppingItem(){
   if(!shop)return;
   const item=document.getElementById('shopItem').value.trim();
   if(!item){document.getElementById('shopItem').focus();return;}
-  const qty=parseFloat(document.getElementById('shopQty').value)||0;
+  const qty=parseFloat(document.getElementById('shopQty').value)||1;
   const unit=document.getElementById('shopUnit').value;
   const rate=parseFloat(document.getElementById('shopRate').value)||0;
   const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
@@ -3142,7 +3159,8 @@ function addShoppingItem(){
     const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='+ Add item';
   }else state.shoppingList.push({id:uid(),...data});
   localSave();
-  ['shopItem','shopQty','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  ['shopItem','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shopQty').value='1';
   document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';
   renderShoppingList();openShoppingTripShop(shop.id);
 }
