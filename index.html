@@ -568,6 +568,28 @@ input,select,textarea{font-family:inherit;}
 
     <div id="shoppingTripShops"></div>
 
+    <div class="overlay" id="tripShopOverlay" onclick="if(event.target===this)closeModal('tripShopOverlay')">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tripShopTitle">
+        <h3 id="tripShopTitle">Add shop to trip</h3>
+        <form id="tripShopForm" onsubmit="event.preventDefault();saveShoppingTripShop()">
+          <div class="field">
+            <label for="tripShopHistory">Shops used before</label>
+            <select id="tripShopHistory" onchange="shoppingTripShopChoice()">
+              <option value="">Select a shop or enter a new one…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="tripShopName">Shop / store name</label>
+            <input id="tripShopName" autocomplete="off" placeholder="Type a new shop name" required>
+          </div>
+          <div class="modal-actions">
+            <button class="btn ghost" type="button" onclick="closeModal('tripShopOverlay')">Cancel</button>
+            <button class="btn primary" type="submit">Add Shop</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Existing item controls retained, now used inside the selected shop -->
     <div class="shop-add" id="shoppingItemEditor" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
@@ -3097,12 +3119,35 @@ function ensureShoppingTripState(){
 }
 function addShoppingTripShop(){
   ensureShoppingTripState();
-  const name=prompt('Shop / store name');
-  if(!name || !name.trim()) return;
-  const shop={id:uid(),name:name.trim(),accountId:'',time:new Date().toTimeString().slice(0,5)};
+  const select=document.getElementById('tripShopHistory');
+  const names=new Map();
+  [...state.transactions.map(t=>t.shop), ...state.shoppingTrip.shops.map(s=>s.name)].forEach(raw=>{
+    const name=String(raw||'').trim();
+    if(name && !names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(),name);
+  });
+  select.replaceChildren(new Option('Select a shop or enter a new one…',''));
+  [...names.values()].sort(alphaCompare).forEach(name=>select.add(new Option(name,name)));
+  document.getElementById('tripShopName').value='';
+  openModal('tripShopOverlay');
+  (names.size?select:document.getElementById('tripShopName')).focus();
+}
+function shoppingTripShopChoice(){
+  const chosen=document.getElementById('tripShopHistory').value;
+  document.getElementById('tripShopName').value=chosen;
+  if(!chosen)document.getElementById('tripShopName').focus();
+}
+function saveShoppingTripShop(){
+  const entered=document.getElementById('tripShopName').value.trim();
+  if(!entered){document.getElementById('tripShopName').focus();return;}
+  // Reuse the spelling already saved for a historical shop.
+  const previous=[...state.transactions.map(t=>t.shop),...state.shoppingTrip.shops.map(s=>s.name)]
+    .find(n=>String(n||'').trim().toLocaleLowerCase()===entered.toLocaleLowerCase());
+  const name=previous?String(previous).trim():entered;
+  const shop={id:uid(),name,accountId:'',time:new Date().toTimeString().slice(0,5)};
   state.shoppingTrip.shops.push(shop);
   activeShoppingShopId=shop.id;
-  localSave(); renderShoppingList(); openShoppingTripShop(shop.id);
+  closeModal('tripShopOverlay');
+  localSave();renderShoppingList();openShoppingTripShop(shop.id);
 }
 function removeShoppingTripShop(id){
   ensureShoppingTripState();
