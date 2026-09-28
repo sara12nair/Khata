@@ -304,6 +304,11 @@ input,select,textarea{font-family:inherit;}
   display:block;width:100%;margin-top:4px;border:1px solid var(--paper-line);background:var(--white);
   border-radius:10px;padding:7px 8px;font-size:12px;color:var(--ink);min-width:0;
 }
+.manual-date-wrap{position:relative;display:block;}
+.date-range .manual-date-wrap input[type="text"]{padding-right:32px;font-family:'IBM Plex Mono',monospace;}
+.calendar-glyph{position:absolute;right:9px;top:11px;color:var(--ink);pointer-events:none;font-size:16px;line-height:1;}
+.date-range .manual-date-wrap .calendar-picker{position:absolute;right:0;top:0;width:33px;height:32px;margin:4px 0 0;padding:0;opacity:0;cursor:pointer;z-index:1;}
+.date-range .manual-date-wrap input.invalid-date{border-color:var(--debit);}
 .filters-toggle{background:none;border:none;color:var(--brass);font-weight:600;font-size:12px;padding:2px 0 8px;}
 
 /* ---- Sync pill states, incl. queued ---- */
@@ -512,7 +517,7 @@ input,select,textarea{font-family:inherit;}
   <div class="section active" id="tab-transactions">
     <div class="period-chips" id="periodChips">
       <button class="on" data-period="today" onclick="setLedgerPeriod('today')">Today</button>
-      <button data-period="week" onclick="setLedgerPeriod('week')">This week</button>
+      <button data-period="week" onclick="setLedgerPeriod('week')">Last 7 days</button>
       <button data-period="month" onclick="setLedgerPeriod('month')">This month</button>
       <button data-period="all" onclick="setLedgerPeriod('all')">All</button>
     </div>
@@ -532,8 +537,8 @@ input,select,textarea{font-family:inherit;}
       <div><button type="button" onclick="clearDateRange()">Clear dates</button><button type="button" style="margin-left:12px" onclick="clearAllFilters()">Clear all filters</button></div>
     </div>
     <div class="date-range">
-      <label><span class="date-label-line"><span>From</span><button type="button" class="today-mini" onclick="setDateToday('from',event)">Today</button></span><input type="date" id="fltFromDate" onchange="onDateRangeChange('from')"></label>
-      <label><span class="date-label-line"><span>To</span><button type="button" class="today-mini" onclick="setDateToday('to',event)">Today</button></span><input type="date" id="fltToDate" onchange="onDateRangeChange('to')"></label>
+      <label><span class="date-label-line"><span>From</span><button type="button" class="today-mini" onclick="setDateToday('from',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltFromDate" aria-label="From date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('from')" onblur="onDateRangeChange('from')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltFromPicker" aria-label="Choose From date" onchange="chooseManualDate('from',this.value)"></span></label>
+      <label><span class="date-label-line"><span>To</span><button type="button" class="today-mini" onclick="setDateToday('to',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltToDate" aria-label="To date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('to')" onblur="onDateRangeChange('to')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltToPicker" aria-label="Choose To date" onchange="chooseManualDate('to',this.value)"></span></label>
     </div>
     <div class="search-scope-hint" id="searchScopeHint">Searching all dates and fields</div>
     <button class="filters-toggle" onclick="toggleMoreFilters()" id="moreFiltersBtn">+ More filters</button>
@@ -933,6 +938,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   // Load local cache immediately so data never flashes empty on refresh
   localLoad();
+  window.addEventListener('focus',refreshForLocalDateChange);
+  document.addEventListener('visibilitychange',()=>{if (!document.hidden) refreshForLocalDateChange();});
+  setInterval(refreshForLocalDateChange,15000);
 });
 
 /* =========================================================================
@@ -1364,6 +1372,15 @@ let sortDir = 'desc';
 let insightPeriod = 'month';
 let pieChartInstance = null;
 
+let lastObservedLocalDate = todayStr();
+function refreshForLocalDateChange(){
+  const currentDate = todayStr();
+  if (currentDate === lastObservedLocalDate) return;
+  lastObservedLocalDate = currentDate;
+  renderBalance();
+  renderTransactions();
+  if (document.getElementById('tab-insights')?.classList.contains('active')) renderInsights();
+}
 function renderAll(){
   renderBalance();
   renderFilters();
@@ -1578,9 +1595,12 @@ function localDateStr(d = new Date()){
   return `${y}-${m}-${day}`;
 }
 function todayStr(){ return localDateStr(); }
-function startOfWeekStr(){
-  const d = new Date(); const day = d.getDay(); // 0=Sun
-  d.setDate(d.getDate() - day);
+function lastSevenDaysStartStr(){
+  const d = new Date(); d.setDate(d.getDate() - 7);
+  return localDateStr(d);
+}
+function yesterdayStr(){
+  const d = new Date(); d.setDate(d.getDate() - 1);
   return localDateStr(d);
 }
 function startOfMonthStr(){
@@ -1594,8 +1614,8 @@ function monthsAgoStr(n){
 function ledgerDateFilter(t){
   if (!t.date) return ledgerPeriod === 'all';
   if (ledgerPeriod === 'today') return t.date === todayStr();
-  if (ledgerPeriod === 'week') return t.date >= startOfWeekStr();
-  if (ledgerPeriod === 'month') return t.date >= startOfMonthStr();
+  if (ledgerPeriod === 'week') return t.date >= lastSevenDaysStartStr() && t.date <= yesterdayStr();
+  if (ledgerPeriod === 'month') return t.date >= startOfMonthStr() && t.date <= todayStr();
   return true; // all
 }
 
@@ -1663,37 +1683,84 @@ function handleSearchKey(event){
     clearAllFilters();
   }
 }
-function onDateRangeChange(changed){
+// Typed dates stay readable as DD-MM-YYYY; comparisons and exports use ISO dates.
+function displayManualDate(iso){
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+function parseManualDate(value){
+  const raw = String(value||'').trim();
+  let parts;
+  if (/^\d{6}$/.test(raw) || /^\d{8}$/.test(raw)) parts = [raw.slice(0,2),raw.slice(2,4),raw.slice(4)];
+  else {
+    const match = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2}|\d{4})$/);
+    if (!match) return '';
+    parts = match.slice(1);
+  }
+  let [dd,mm,yyyy] = parts.map(Number);
+  if (yyyy < 100) yyyy += 2000;
+  if (yyyy < 1900 || yyyy > 2099 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  const check = new Date(yyyy,mm-1,dd);
+  if (check.getFullYear() !== yyyy || check.getMonth()+1 !== mm || check.getDate() !== dd) return '';
+  return `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+}
+function filterDateIso(id){ return parseManualDate(document.getElementById(id).value); }
+function setManualDate(which,iso){
+  const name = which === 'from' ? 'fltFrom' : 'fltTo';
+  const field = document.getElementById(name+'Date');
+  field.value = displayManualDate(iso);
+  field.classList.remove('invalid-date');
+  document.getElementById(name+'Picker').value = iso;
+}
+function beginManualDateRange(field){
   const from = document.getElementById('fltFromDate');
   const to = document.getElementById('fltToDate');
-  if (from.value && to.value && from.value > to.value) {
-    if (changed === 'from') to.value = from.value;
-    else from.value = to.value;
-  }
-  to.min = from.value || '';
-  from.max = to.value || '';
+  if (from.value || to.value) return;
+  const end = new Date(); end.setDate(end.getDate()-1);
+  const start = new Date(end.getFullYear(),end.getMonth(),1);
+  setManualDate('from',localDateStr(start));
+  setManualDate('to',localDateStr(end));
+  renderTransactions();
+  field.select();
+}
+function onManualDateInput(which){
+  const field = document.getElementById(which==='from'?'fltFromDate':'fltToDate');
+  const value = field.value.replace(/[^\d.\/-]/g,'');
+  // At most eight digits: DD MM YYYY. The year cannot become six digits.
+  let digits = 0;
+  field.value = [...value].filter(ch => !/\d/.test(ch) || ++digits <= 8).join('').slice(0,10);
+  field.classList.toggle('invalid-date',!!field.value && !parseManualDate(field.value));
   renderTransactions();
 }
+function onDateRangeChange(changed){
+  const field = document.getElementById(changed==='from'?'fltFromDate':'fltToDate');
+  const iso = parseManualDate(field.value);
+  if (iso) setManualDate(changed,iso);
+  else field.classList.toggle('invalid-date',!!field.value);
+  const from = filterDateIso('fltFromDate'), to = filterDateIso('fltToDate');
+  if (from && to && from > to) setManualDate(changed==='from'?'to':'from',changed==='from'?from:to);
+  renderTransactions();
+}
+function chooseManualDate(which,iso){
+  if (!iso) return;
+  setManualDate(which,iso);
+  onDateRangeChange(which);
+}
 function clearDateRange(){
-  const from = document.getElementById('fltFromDate');
-  const to = document.getElementById('fltToDate');
-  from.value = '';
-  to.value = '';
-  from.max = '';
-  to.min = '';
+  setManualDate('from','');
+  setManualDate('to','');
   renderTransactions();
 }
 function setDateToday(which,event){
   if (event) { event.preventDefault(); event.stopPropagation(); }
-  document.getElementById(which==='from'?'fltFromDate':'fltToDate').value = todayStr();
+  setManualDate(which,todayStr());
   onDateRangeChange(which);
 }
 function clearAllFilters(){
   document.getElementById('txSearch').value = '';
-  document.getElementById('fltFromDate').value = '';
-  document.getElementById('fltToDate').value = '';
-  document.getElementById('fltFromDate').max = '';
-  document.getElementById('fltToDate').min = '';
+  setManualDate('from','');
+  setManualDate('to','');
   document.getElementById('fltAccount').value = '';
   document.getElementById('fltCategory').value = '';
   onFltCategoryChange(false);
@@ -1742,8 +1809,8 @@ function renderTransactions(){
   const minAmt = parseFloat(document.getElementById('fltMinAmt').value);
   const maxAmt = parseFloat(document.getElementById('fltMaxAmt').value);
   const q = (document.getElementById('txSearch').value || '').trim().toLowerCase();
-  const fromDate = document.getElementById('fltFromDate').value;
-  const toDate = document.getElementById('fltToDate').value;
+  const fromDate = filterDateIso('fltFromDate');
+  const toDate = filterDateIso('fltToDate');
   const hasCustomDateRange = !!(fromDate || toDate);
   const sortBy = document.getElementById('sortBy').value;
   const searchBox = document.getElementById('txSearch');
@@ -2680,8 +2747,8 @@ async function exportExcel(exportAll=false, accountOverride=''){
   const minAmt = parseFloat(minRaw), maxAmt = parseFloat(maxRaw);
   const qRaw = exportAll || accountOverride ? '' : (el('txSearch').value || '').trim();
   const q = qRaw.toLowerCase();
-  const fromDate = exportAll || accountOverride ? '' : el('fltFromDate').value;
-  const toDate = exportAll || accountOverride ? '' : el('fltToDate').value;
+  const fromDate = exportAll || accountOverride ? '' : filterDateIso('fltFromDate');
+  const toDate = exportAll || accountOverride ? '' : filterDateIso('fltToDate');
   const hasCustomDateRange = !!(fromDate || toDate);
 
   let list = state.transactions.slice();
@@ -2716,7 +2783,7 @@ async function exportExcel(exportAll=false, accountOverride=''){
   if (commonSub) filters.push('Sub-category: '+commonSub);
   if (commonType) filters.push('Type: '+commonType);
   if (fromDate || toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if (!exportAll && !q) filters.push('Period: '+({today:'Today',week:'This week',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  else if (!exportAll && !q) filters.push('Period: '+({today:'Today',week:'Last 7 days',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
   if (qRaw) filters.push('Search: '+qRaw);
   if (minRaw || maxRaw) filters.push('Amount: '+(minRaw||'0')+' to '+(maxRaw||'Any'));
 
@@ -2798,8 +2865,8 @@ function getReportData(exportAll=false, accountOverride=''){
   const typeF=exportAll||accountOverride?'':el('fltType').value;
   const qRaw=exportAll||accountOverride?'':(el('txSearch').value||'').trim();
   const q=qRaw.toLowerCase();
-  const fromDate=exportAll||accountOverride?'':el('fltFromDate').value;
-  const toDate=exportAll||accountOverride?'':el('fltToDate').value;
+  const fromDate=exportAll||accountOverride?'':filterDateIso('fltFromDate');
+  const toDate=exportAll||accountOverride?'':filterDateIso('fltToDate');
   const minRaw=exportAll||accountOverride?'':el('fltMinAmt').value;
   const maxRaw=exportAll||accountOverride?'':el('fltMaxAmt').value;
   const minAmt=parseFloat(minRaw),maxAmt=parseFloat(maxRaw);
@@ -2827,7 +2894,7 @@ function getReportData(exportAll=false, accountOverride=''){
   if(subF) filters.push('Sub-category: '+subF);
   if(typeF) filters.push('Type: '+(typeF==='credit'?'Credit':typeF==='debit'?'Debit':'Transfer'));
   if(fromDate||toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if(!exportAll&&!q) filters.push('Period: '+({today:'Today',week:'This week',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  else if(!exportAll&&!q) filters.push('Period: '+({today:'Today',week:'Last 7 days',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
   if(qRaw) filters.push('Search: '+qRaw);
   const credit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:0),0);
   const debit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:0),0);
