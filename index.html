@@ -1994,12 +1994,27 @@ function renderTransactions(){
     `<span class="debit">Debit: <span class="mono">${inr(visibleDebit)}</span></span> · ` +
     `<span class="${visibleDifferenceClass}">Difference: <span class="mono">${visibleDifferenceText}</span></span>`;
 
-  list.sort((a,b)=>{
-    let cmp;
-    if (sortBy === 'amount') cmp = Number(a.amount) - Number(b.amount);
-    else cmp = (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'');
-    return sortDir === 'desc' ? -cmp : cmp;
-  });
+  // Single-day ledger is a chronological diary: earliest transaction first.
+  // Daily serial numbers are calculated at render time, never stored.
+  const isSingleDayView = !q && ledgerPeriod==='today';
+  if (isSingleDayView) {
+    list.sort((a,b)=>{
+      const timeCmp=(a.time||'00:00').localeCompare(b.time||'00:00');
+      if(timeCmp)return timeCmp;
+      const createdA=String(a.createdAt||a.created||a.timestamp||'');
+      const createdB=String(b.createdAt||b.created||b.timestamp||'');
+      const createdCmp=createdA.localeCompare(createdB);
+      if(createdCmp)return createdCmp;
+      return String(a.id||'').localeCompare(String(b.id||''));
+    });
+  } else {
+    list.sort((a,b)=>{
+      let cmp;
+      if (sortBy === 'amount') cmp = Number(a.amount) - Number(b.amount);
+      else cmp = (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'');
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+  }
 
   const wrap = document.getElementById('txList');
   if (!list.length) {
@@ -2008,16 +2023,16 @@ function renderTransactions(){
       : '<div class="empty-note">No transactions in this view. Tap + to add one, or adjust filters.</div>';
     return;
   }
-  wrap.innerHTML = list.map(t=>{
+  wrap.innerHTML = list.map((t,idx)=>{
     const cat = state.categories.find(c=>c.id===t.categoryId);
     const acc = state.accounts.find(a=>a.id===t.accountId);
-    const icon = t.type==='credit' ? '↓' : '↑';
+    const icon = isSingleDayView ? String(idx+1) : (t.type==='credit' ? '↓' : '↑');
     const itemBits = [];
     if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
     if (t.shop) itemBits.push(escapeHtml(t.shop));
     const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
     return `<div class="tx-row ${t.type}" onclick="${t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`}">
-      <div class="tx-icon">${icon}</div>
+      <div class="tx-icon" title="${isSingleDayView?'Daily transaction '+(idx+1):(t.type==='credit'?'Credit':'Debit')}">${icon}</div>
       <div class="tx-mid">
         <div class="tx-cat">${t.isTransfer?'Transfer':escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
         <div class="tx-sub">${escapeHtml(acc?accountLabel(acc):'—')}</div>
