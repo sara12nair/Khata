@@ -202,6 +202,12 @@ input,select,textarea{font-family:inherit;}
   animation:slideup .18s ease-out;
 }
 @keyframes slideup{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@media (min-width:700px){
+  #txOverlay{align-items:center;}
+  #txOverlay .modal{border-radius:20px;max-height:88vh;}
+  #txModalTitle{cursor:move;user-select:none;padding-right:34px;}
+  #txOverlay .modal.tx-dragging{animation:none;}
+}
 .modal h3{font-size:17px;margin-bottom:14px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
@@ -495,7 +501,10 @@ input,select,textarea{font-family:inherit;}
   <div class="topbar">
     <div class="brand">
       <div class="stamp">₹</div>
-      <div class="brand-title">Khata</div>
+      <div>
+        <div class="brand-title">Khata</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 260930-2118</div>
+      </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
   </div>
@@ -754,7 +763,7 @@ input,select,textarea{font-family:inherit;}
 <!-- ============ TRANSACTION MODAL ============ -->
 <div class="overlay" id="txOverlay">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('txOverlay')">✕</button>
+    <button class="close-x" onclick="requestCloseTxModal()">✕</button>
     <h3 id="txModalTitle">Add transaction</h3>
     <input type="hidden" id="txId">
     <div class="field">
@@ -820,7 +829,7 @@ input,select,textarea{font-family:inherit;}
     <div class="modal-actions">
       <button class="btn ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTx()">Delete</button>
       <button class="btn ghost" id="txCloneBtn" style="display:none;" onclick="cloneCurrentTx()">Clone</button>
-      <button class="btn ghost" onclick="closeModal('txOverlay')">Cancel</button>
+      <button class="btn ghost" onclick="requestCloseTxModal()">Cancel</button>
       <button class="btn primary" onclick="saveTx()">Save</button>
     </div>
   </div>
@@ -2415,7 +2424,60 @@ function onTxSubcategoryChange(){
   refreshItemCategoryHint(false);
 }
 
+let txModalSnapshot = '';
+let txModalDirty = false;
+
+function txFormSnapshot(){
+  const ids=['txId','txAmount','txDate','txTime','txAccount','txCategory','txSubcategory','txNote','txItemName','txQty','txUnit','txShop'];
+  return JSON.stringify({type:txType,values:ids.map(id=>document.getElementById(id)?.value??'')});
+}
+function markTxSnapshot(){
+  txModalSnapshot=txFormSnapshot();
+  txModalDirty=false;
+}
+function txHasUnsavedChanges(){
+  return !!txModalSnapshot && txFormSnapshot()!==txModalSnapshot;
+}
+function requestCloseTxModal(){
+  if(txHasUnsavedChanges() && !confirm('Discard unsaved changes?')) return;
+  txModalDirty=false; txModalSnapshot='';
+  resetTxModalPosition();
+  closeModal('txOverlay');
+}
+function resetTxModalPosition(){
+  const modal=document.querySelector('#txOverlay .modal');
+  if(modal){modal.style.translate=''; modal.dataset.dragX='0'; modal.dataset.dragY='0';}
+}
+function initTxModalDrag(){
+  const title=document.getElementById('txModalTitle');
+  const modal=document.querySelector('#txOverlay .modal');
+  if(!title||!modal||title.dataset.dragReady)return;
+  title.dataset.dragReady='1';
+  let startX=0,startY=0,baseX=0,baseY=0,dragging=false;
+  title.addEventListener('pointerdown',e=>{
+    if(window.innerWidth<700 || e.button!==0)return;
+    dragging=true; startX=e.clientX; startY=e.clientY;
+    baseX=Number(modal.dataset.dragX||0); baseY=Number(modal.dataset.dragY||0);
+    modal.classList.add('tx-dragging'); title.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  title.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const rect=modal.getBoundingClientRect();
+    let nx=baseX+(e.clientX-startX), ny=baseY+(e.clientY-startY);
+    const margin=8;
+    nx=Math.min(nx,baseX+(window.innerWidth-margin-rect.right));
+    nx=Math.max(nx,baseX+(margin-rect.left));
+    ny=Math.min(ny,baseY+(window.innerHeight-margin-rect.bottom));
+    ny=Math.max(ny,baseY+(margin-rect.top));
+    modal.dataset.dragX=String(nx); modal.dataset.dragY=String(ny);
+    modal.style.translate=`${nx}px ${ny}px`;
+  });
+  const end=e=>{if(!dragging)return;dragging=false;modal.classList.remove('tx-dragging');try{title.releasePointerCapture(e.pointerId)}catch(_){}};
+  title.addEventListener('pointerup',end); title.addEventListener('pointercancel',end);
+}
 function openTxModal(id){
+  resetTxModalPosition();
+  document.getElementById('txDate').max = localDateStr(new Date());
   document.getElementById('txId').value = id || '';
   document.getElementById('txDeleteBtn').style.display = id ? 'block' : 'none';
   document.getElementById('txCloneBtn').style.display = id ? 'block' : 'none';
@@ -2459,6 +2521,8 @@ function openTxModal(id){
   updateUnitHint();
   refreshItemCategoryHint(false);
   openModal('txOverlay');
+  initTxModalDrag();
+  requestAnimationFrame(markTxSnapshot);
 }
 
 function toggleItemFields(){
@@ -2468,17 +2532,20 @@ function toggleItemFields(){
 function setItemFieldsVisible(show){
   document.getElementById('itemFields').classList.toggle('show', show);
   document.getElementById('itemToggleIcon').textContent = show ? '▴' : '▾';
+  updateUnitHint();
 }
 function updateUnitHint(){
-  const amount = parseFloat(document.getElementById('txAmount').value);
-  const qty = parseFloat(document.getElementById('txQty').value);
+  const amount = Number(document.getElementById('txAmount').value);
+  const qty = Number(document.getElementById('txQty').value);
   const unit = document.getElementById('txUnit').value;
+  const itemName = document.getElementById('txItemName').value.trim();
+  const itemOpen = document.getElementById('itemFields').classList.contains('show');
   const hint = document.getElementById('unitHint');
-  if (amount > 0 && qty > 0) {
-    hint.style.display = 'block';
+  hint.textContent = '';
+  hint.style.display = 'none';
+  if (itemOpen && itemName && Number.isFinite(amount) && amount>0 && Number.isFinite(qty) && qty>0) {
     hint.textContent = `≈ ${inr(amount/qty)}${unit ? '/'+unit : ' per unit'}`;
-  } else {
-    hint.style.display = 'none';
+    hint.style.display = 'block';
   }
 }
 function normalizeItemName(value){
@@ -2542,21 +2609,15 @@ function applyItemCategorySuggestion(){
 document.getElementById('txAmount') && document.getElementById('txAmount').addEventListener('input', updateUnitHint);
 
 function cloneCurrentTx(){
-  const useCurrentDateTime = confirm(
-    "Use today's date and current time for this clone?\n\n" +
-    'OK = Today and now\nCancel = Keep the original date and time'
-  );
   document.getElementById('txId').value = '';
   document.getElementById('txDeleteBtn').style.display = 'none';
   document.getElementById('txCloneBtn').style.display = 'none';
   document.getElementById('txModalTitle').textContent = 'Clone transaction (New item)';
-  if (useCurrentDateTime) {
-    const now = new Date();
-    document.getElementById('txDate').value = localDateStr(now);
-    document.getElementById('txTime').value = now.toTimeString().slice(0,5);
-  }
-  // Keep all copied details. The user can adjust the amount, note, account,
-  // category, item, or shop before saving the new transaction.
+  const now = new Date();
+  document.getElementById('txDate').value = localDateStr(now);
+  document.getElementById('txTime').value = now.toTimeString().slice(0,5);
+  updateUnitHint();
+  markTxSnapshot();
   document.getElementById('txAmount').focus();
 }
 
@@ -2584,7 +2645,11 @@ function saveTx(){
   const selectedCategory = document.getElementById('txCategory').value;
   if (!selectedAccount || selectedAccount === '__add__') { alert('Select or add an account.'); return; }
   if (!selectedCategory || selectedCategory === '__add__') { alert('Select or add a category.'); return; }
+  const txDateValue = document.getElementById('txDate').value;
+  if (!txDateValue) { alert('Select a transaction date.'); return; }
+  if (txDateValue > localDateStr(new Date())) { alert('Future transaction dates are not allowed.'); return; }
   const existingId = document.getElementById('txId').value;
+  const existingTx = existingId ? state.transactions.find(t=>t.id===existingId) : null;
   const id = existingId || uid();
   const qtyVal = parseFloat(document.getElementById('txQty').value);
   const itemName = document.getElementById('txItemName').value.trim();
@@ -2599,7 +2664,7 @@ function saveTx(){
     id,
     type: txType,
     amount,
-    date: document.getElementById('txDate').value,
+    date: txDateValue,
     time: document.getElementById('txTime').value,
     accountId: selectedAccount,
     categoryId: selectedCategory,
@@ -2609,7 +2674,8 @@ function saveTx(){
     itemName,
     qty: qtyVal > 0 ? qtyVal : null,
     unit: document.getElementById('txUnit').value,
-    shop: document.getElementById('txShop').value.trim()
+    shop: document.getElementById('txShop').value.trim(),
+    createdAt: existingTx?.createdAt || new Date().toISOString()
   };
 
   if (!existingId) {
@@ -2665,6 +2731,7 @@ function saveTx(){
   queueOp({kind:'tx-set', id, payload:tx});
   flushQueue();
 
+  txModalSnapshot=''; txModalDirty=false; resetTxModalPosition();
   closeModal('txOverlay');
 }
 
@@ -2679,6 +2746,7 @@ function deleteCurrentTx(){
 
   queueOp({kind:'tx-delete', id});
   flushQueue();
+  txModalSnapshot=''; txModalDirty=false; resetTxModalPosition();
   closeModal('txOverlay');
 }
 
