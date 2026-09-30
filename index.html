@@ -528,9 +528,12 @@ input,select,textarea{font-family:inherit;}
       <button type="button" class="icon-btn" onclick="shiftLedgerMonth(1)" title="Next month">›</button>
       <button type="button" class="link-btn" id="ledgerMonthCurrentBtn" onclick="resetLedgerMonth()">Current</button>
     </div>
-    <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:10px;margin:-2px 0 10px;">
+    <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:8px;margin:-2px 0 10px;">
       <button type="button" class="icon-btn" onclick="shiftLedgerDay(-1)" title="Previous day">‹</button>
-      <b id="ledgerDayLabel" style="min-width:170px;text-align:center"></b>
+      <button type="button" class="link-btn" id="ledgerDayLabelBtn" onclick="openLedgerDayPicker()" title="Choose any date" style="min-width:180px;text-align:center;font-weight:700">
+        <span id="ledgerDayLabel"></span> <span aria-hidden="true">▦</span>
+      </button>
+      <input type="date" id="ledgerDayPicker" aria-label="Choose ledger date" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" onchange="chooseLedgerDay(this.value)">
       <button type="button" class="icon-btn" id="ledgerDayNextBtn" onclick="shiftLedgerDay(1)" title="Next day">›</button>
       <button type="button" class="link-btn" id="ledgerDayTodayBtn" onclick="resetLedgerDay()">Today</button>
     </div>
@@ -1387,31 +1390,65 @@ let ledgerMonthOffset = 0;
 let ledgerDayOffset = 0;
 let sortDir = 'desc';
 
-function ledgerDayDate(){
-  const d=new Date();
-  d.setHours(12,0,0,0);
-  d.setDate(d.getDate()+ledgerDayOffset);
+let ledgerSelectedDay = todayStr();
+
+function dateFromIsoLocal(iso){
+  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return new Date();
+  const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12,0,0,0);
   return d;
 }
-function ledgerDayStr(){ return localDateStr(ledgerDayDate()); }
+function ledgerDayDate(){ return dateFromIsoLocal(ledgerSelectedDay||todayStr()); }
+function ledgerDayStr(){ return ledgerSelectedDay||todayStr(); }
+function ledgerDayOffsetFromToday(){
+  const a=dateFromIsoLocal(todayStr()), b=ledgerDayDate();
+  return Math.round((b-a)/86400000);
+}
 function updateLedgerDayNavigator(){
   const nav=document.getElementById('dayNavigator'),label=document.getElementById('ledgerDayLabel');
   if(!nav||!label)return;
   nav.style.display=ledgerPeriod==='today'?'flex':'none';
   if(ledgerPeriod!=='today')return;
-  const d=ledgerDayDate();
-  const prefix=ledgerDayOffset===0?'Today · ':ledgerDayOffset===-1?'Yesterday · ':'';
+  const d=ledgerDayDate(), offset=ledgerDayOffsetFromToday();
+  const prefix=offset===0?'Today · ':offset===-1?'Yesterday · ':'';
   label.textContent=prefix+d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   const next=document.getElementById('ledgerDayNextBtn');
-  if(next){ next.disabled=ledgerDayOffset>=0; next.style.opacity=ledgerDayOffset>=0?'.35':'1'; }
+  if(next){ next.disabled=offset>=0; next.style.opacity=offset>=0?'.35':'1'; }
   const today=document.getElementById('ledgerDayTodayBtn');
-  if(today)today.style.visibility=ledgerDayOffset===0?'hidden':'visible';
+  if(today)today.style.visibility=offset===0?'hidden':'visible';
+  const picker=document.getElementById('ledgerDayPicker');
+  if(picker){picker.value=ledgerDayStr();picker.max=todayStr();}
 }
 function shiftLedgerDay(delta){
-  ledgerDayOffset=Math.min(0,ledgerDayOffset+delta);
+  const d=ledgerDayDate();
+  d.setDate(d.getDate()+delta);
+  let iso=localDateStr(d);
+  if(iso>todayStr())iso=todayStr();
+  ledgerSelectedDay=iso;
+  ledgerDayOffset=ledgerDayOffsetFromToday();
   setLedgerPeriod('today',false,true);
 }
-function resetLedgerDay(){ ledgerDayOffset=0; setLedgerPeriod('today',false,true); }
+function resetLedgerDay(){
+  ledgerSelectedDay=todayStr();
+  ledgerDayOffset=0;
+  setLedgerPeriod('today',false,true);
+}
+function openLedgerDayPicker(){
+  const p=document.getElementById('ledgerDayPicker'); if(!p)return;
+  p.max=todayStr(); p.value=ledgerDayStr();
+  if(typeof p.showPicker==='function'){ try{p.showPicker();return;}catch(e){} }
+  p.style.position='static';p.style.opacity='1';p.style.pointerEvents='auto';p.style.width='auto';p.style.height='auto';
+  p.focus();p.click();
+}
+function chooseLedgerDay(iso){
+  if(!iso)return;
+  if(iso>todayStr())iso=todayStr();
+  ledgerSelectedDay=iso;
+  ledgerDayOffset=ledgerDayOffsetFromToday();
+  const p=document.getElementById('ledgerDayPicker');
+  if(p){p.style.position='absolute';p.style.opacity='0';p.style.pointerEvents='none';p.style.width='1px';p.style.height='1px';}
+  setLedgerPeriod('today',false,true);
+}
 
 function ledgerMonthBounds(){
   const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+ledgerMonthOffset);
@@ -1725,7 +1762,7 @@ function onFltCategoryChange(preserveSub){
 function setLedgerPeriod(p,keepMonth=false,keepDay=false){
   ledgerPeriod = p;
   if(p==='month' && !keepMonth) ledgerMonthOffset=0;
-  if(p==='today' && !keepDay) ledgerDayOffset=0;
+  if(p==='today' && !keepDay){ ledgerDayOffset=0; ledgerSelectedDay=todayStr(); }
   document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
   const custom=document.getElementById('customDatePanel');
   if(custom) custom.style.display=p==='custom'?'block':'none';
@@ -1860,6 +1897,7 @@ function clearAllFilters(){
   document.getElementById('sortDirBtn').textContent = '↓';
   ledgerPeriod = 'today';
   ledgerDayOffset = 0;
+  ledgerSelectedDay = todayStr();
   ledgerMonthOffset = 0;
   document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period==='today'));
   const custom=document.getElementById('customDatePanel'); if(custom) custom.style.display='none';
@@ -1903,8 +1941,8 @@ function renderTransactions(){
   const q = (document.getElementById('txSearch').value || '').trim().toLowerCase();
   const fromDate = filterDateIso('fltFromDate');
   const toDate = filterDateIso('fltToDate');
-  // From/To dates are active ONLY while the Custom chip is selected.
-  // Hidden Custom dates must never override Today / Last 7 days / Month / All.
+  // From/To dates are active ONLY while Custom is selected AND there is no text search.
+  // Any text in universal search temporarily overrides every date/period filter.
   const hasCustomDateRange = ledgerPeriod==='custom' && !!(fromDate || toDate);
   const sortBy = document.getElementById('sortBy').value;
   const searchBox = document.getElementById('txSearch');
@@ -1913,17 +1951,18 @@ function renderTransactions(){
   searchBox.classList.toggle('searching-all', !!q);
   searchClear.classList.toggle('show', !!q);
   searchHint.classList.toggle('show', !!q || hasCustomDateRange);
-  searchHint.textContent = q && hasCustomDateRange
-    ? 'Searching all fields within the selected dates'
+  searchHint.textContent = q
+    ? 'Searching all dates and fields'
     : hasCustomDateRange ? 'Showing the selected date range' : 'Searching all dates and fields';
 
-  // Search remains global across dates. Without a search, the selected period
-  // controls the date filter. Custom uses From/To; every other chip ignores them.
   let list = state.transactions.slice();
-  if (!q && ledgerPeriod!=='custom') list = list.filter(ledgerDateFilter);
-  if (ledgerPeriod==='custom') {
-    if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
-    if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+  if (!q) {
+    if (ledgerPeriod!=='custom') {
+      list = list.filter(ledgerDateFilter);
+    } else {
+      if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
+      if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+    }
   }
   if (accF) list = list.filter(t=>t.accountId===accF);
   if (catF) list = list.filter(t=>t.categoryId===catF);
@@ -1935,7 +1974,7 @@ function renderTransactions(){
     const cat = state.categories.find(c=>c.id===t.categoryId);
     const acc = state.accounts.find(a=>a.id===t.accountId);
     return [
-      t.note, t.itemName, t.shop, t.subcategory, t.date, t.time,
+      t.note, t.itemName, t.shop, t.store, t.description, t.subcategory, t.date, t.time,
       t.amount, t.type, cat && cat.name, acc && accountLabel(acc)
     ].some(value => String(value || '').toLowerCase().includes(q));
   });
@@ -2899,7 +2938,7 @@ async function exportExcel(exportAll=false, accountOverride=''){
   if (commonSub) filters.push('Sub-category: '+commonSub);
   if (commonType) filters.push('Type: '+commonType);
   if (fromDate || toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if (!exportAll && !q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffset===0?'Today':ledgerDayOffset===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
+  else if (!exportAll && !q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffsetFromToday()===0?'Today':ledgerDayOffsetFromToday()===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
   if (qRaw) filters.push('Search: '+qRaw);
   if (minRaw || maxRaw) filters.push('Amount: '+(minRaw||'0')+' to '+(maxRaw||'Any'));
 
@@ -3010,7 +3049,7 @@ function getReportData(exportAll=false, accountOverride=''){
   if(subF) filters.push('Sub-category: '+subF);
   if(typeF) filters.push('Type: '+(typeF==='credit'?'Credit':typeF==='debit'?'Debit':'Transfer'));
   if(fromDate||toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if(!exportAll&&!q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffset===0?'Today':ledgerDayOffset===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
+  else if(!exportAll&&!q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffsetFromToday()===0?'Today':ledgerDayOffsetFromToday()===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
   if(qRaw) filters.push('Search: '+qRaw);
   const credit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:0),0);
   const debit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:0),0);
