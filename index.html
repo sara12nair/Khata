@@ -528,12 +528,13 @@ input,select,textarea{font-family:inherit;}
       <button type="button" class="icon-btn" onclick="shiftLedgerMonth(1)" title="Next month">›</button>
       <button type="button" class="link-btn" id="ledgerMonthCurrentBtn" onclick="resetLedgerMonth()">Current</button>
     </div>
-    <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:8px;margin:-2px 0 10px;">
+    <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:7px;margin:-2px 0 10px;flex-wrap:wrap;">
       <button type="button" class="icon-btn" onclick="shiftLedgerDay(-1)" title="Previous day">‹</button>
-      <button type="button" class="link-btn" id="ledgerDayLabelBtn" onclick="openLedgerDayPicker()" title="Choose any date" style="min-width:180px;text-align:center;font-weight:700">
-        <span id="ledgerDayLabel"></span> <span aria-hidden="true">▦</span>
-      </button>
-      <input type="date" id="ledgerDayPicker" aria-label="Choose ledger date" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" onchange="chooseLedgerDay(this.value)">
+      <b id="ledgerDayLabel" style="min-width:155px;text-align:center"></b>
+      <label title="Choose any date" aria-label="Choose ledger date" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--paper-line);border-radius:10px;background:var(--white);cursor:pointer;overflow:hidden;">
+        <span aria-hidden="true" style="font-size:17px;line-height:1;">📅</span>
+        <input type="date" id="ledgerDayPicker" aria-label="Choose ledger date" onchange="chooseLedgerDay(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+      </label>
       <button type="button" class="icon-btn" id="ledgerDayNextBtn" onclick="shiftLedgerDay(1)" title="Next day">›</button>
       <button type="button" class="link-btn" id="ledgerDayTodayBtn" onclick="resetLedgerDay()">Today</button>
     </div>
@@ -1437,8 +1438,7 @@ function openLedgerDayPicker(){
   const p=document.getElementById('ledgerDayPicker'); if(!p)return;
   p.max=todayStr(); p.value=ledgerDayStr();
   if(typeof p.showPicker==='function'){ try{p.showPicker();return;}catch(e){} }
-  p.style.position='static';p.style.opacity='1';p.style.pointerEvents='auto';p.style.width='auto';p.style.height='auto';
-  p.focus();p.click();
+  p.focus(); p.click();
 }
 function chooseLedgerDay(iso){
   if(!iso)return;
@@ -1446,7 +1446,7 @@ function chooseLedgerDay(iso){
   ledgerSelectedDay=iso;
   ledgerDayOffset=ledgerDayOffsetFromToday();
   const p=document.getElementById('ledgerDayPicker');
-  if(p){p.style.position='absolute';p.style.opacity='0';p.style.pointerEvents='none';p.style.width='1px';p.style.height='1px';}
+  if(p){p.value=iso;p.max=todayStr();}
   setLedgerPeriod('today',false,true);
 }
 
