@@ -520,6 +520,19 @@ input,select,textarea{font-family:inherit;}
       <button data-period="week" onclick="setLedgerPeriod('week')">Last 7 days</button>
       <button data-period="month" onclick="setLedgerPeriod('month')">This month</button>
       <button data-period="all" onclick="setLedgerPeriod('all')">All</button>
+      <button data-period="custom" onclick="setLedgerPeriod('custom')">Custom</button>
+    </div>
+    <div id="monthNavigator" style="display:none;align-items:center;justify-content:center;gap:10px;margin:-2px 0 10px;">
+      <button type="button" class="icon-btn" onclick="shiftLedgerMonth(-1)" title="Previous month">‹</button>
+      <b id="ledgerMonthLabel" style="min-width:150px;text-align:center"></b>
+      <button type="button" class="icon-btn" onclick="shiftLedgerMonth(1)" title="Next month">›</button>
+      <button type="button" class="link-btn" id="ledgerMonthCurrentBtn" onclick="resetLedgerMonth()">Current</button>
+    </div>
+    <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:10px;margin:-2px 0 10px;">
+      <button type="button" class="icon-btn" onclick="shiftLedgerDay(-1)" title="Previous day">‹</button>
+      <b id="ledgerDayLabel" style="min-width:170px;text-align:center"></b>
+      <button type="button" class="icon-btn" id="ledgerDayNextBtn" onclick="shiftLedgerDay(1)" title="Next day">›</button>
+      <button type="button" class="link-btn" id="ledgerDayTodayBtn" onclick="resetLedgerDay()">Today</button>
     </div>
     <div class="toolrow">
       <div class="search-wrap">
@@ -532,13 +545,15 @@ input,select,textarea{font-family:inherit;}
       </select>
       <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()">↓</button>
     </div>
-    <div class="date-range-head">
-      <span>Search by date</span>
-      <div><button type="button" onclick="clearDateRange()">Clear dates</button><button type="button" style="margin-left:12px" onclick="clearAllFilters()">Clear all filters</button></div>
-    </div>
-    <div class="date-range">
-      <label><span class="date-label-line"><span>From</span><button type="button" class="today-mini" onclick="setDateToday('from',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltFromDate" aria-label="From date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('from')" onblur="onDateRangeChange('from')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltFromPicker" aria-label="Choose From date" onchange="chooseManualDate('from',this.value)"></span></label>
-      <label><span class="date-label-line"><span>To</span><button type="button" class="today-mini" onclick="setDateToday('to',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltToDate" aria-label="To date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('to')" onblur="onDateRangeChange('to')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltToPicker" aria-label="Choose To date" onchange="chooseManualDate('to',this.value)"></span></label>
+    <div id="customDatePanel" style="display:none;">
+      <div class="date-range-head">
+        <span>Custom date range</span>
+        <div><button type="button" onclick="clearAllFilters()">Clear all</button></div>
+      </div>
+      <div class="date-range">
+        <label><span class="date-label-line"><span>From</span><button type="button" class="today-mini" onclick="setDateToday('from',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltFromDate" aria-label="From date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('from')" onblur="onDateRangeChange('from')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltFromPicker" aria-label="Choose From date" onchange="chooseManualDate('from',this.value)"></span></label>
+        <label><span class="date-label-line"><span>To</span><button type="button" class="today-mini" onclick="setDateToday('to',event)">Today</button></span><span class="manual-date-wrap"><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="dd-mm-yyyy" id="fltToDate" aria-label="To date" onfocus="beginManualDateRange(this)" oninput="onManualDateInput('to')" onblur="onDateRangeChange('to')"><span class="calendar-glyph" aria-hidden="true">▦</span><input type="date" class="calendar-picker" id="fltToPicker" aria-label="Choose To date" onchange="chooseManualDate('to',this.value)"></span></label>
+      </div>
     </div>
     <div class="search-scope-hint" id="searchScopeHint">Searching all dates and fields</div>
     <button class="filters-toggle" onclick="toggleMoreFilters()" id="moreFiltersBtn">+ More filters</button>
@@ -608,7 +623,7 @@ input,select,textarea{font-family:inherit;}
         <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
         <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
         <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
-        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹" oninput="this.dataset.manual=this.value!==''?'1':''">
+        <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹" oninput="this.dataset.manual=this.value!==''?'1':''; if(this.value==='') calculateShoppingEstimate(); else recalculateShoppingRateFromAmount()">
       </div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
       <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--ink-soft)"></div>
@@ -1368,7 +1383,57 @@ function switchTab(tab){
    RENDER
 ========================================================================= */
 let ledgerPeriod = 'today';
+let ledgerMonthOffset = 0;
+let ledgerDayOffset = 0;
 let sortDir = 'desc';
+
+function ledgerDayDate(){
+  const d=new Date();
+  d.setHours(12,0,0,0);
+  d.setDate(d.getDate()+ledgerDayOffset);
+  return d;
+}
+function ledgerDayStr(){ return localDateStr(ledgerDayDate()); }
+function updateLedgerDayNavigator(){
+  const nav=document.getElementById('dayNavigator'),label=document.getElementById('ledgerDayLabel');
+  if(!nav||!label)return;
+  nav.style.display=ledgerPeriod==='today'?'flex':'none';
+  if(ledgerPeriod!=='today')return;
+  const d=ledgerDayDate();
+  const prefix=ledgerDayOffset===0?'Today · ':ledgerDayOffset===-1?'Yesterday · ':'';
+  label.textContent=prefix+d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const next=document.getElementById('ledgerDayNextBtn');
+  if(next){ next.disabled=ledgerDayOffset>=0; next.style.opacity=ledgerDayOffset>=0?'.35':'1'; }
+  const today=document.getElementById('ledgerDayTodayBtn');
+  if(today)today.style.visibility=ledgerDayOffset===0?'hidden':'visible';
+}
+function shiftLedgerDay(delta){
+  ledgerDayOffset=Math.min(0,ledgerDayOffset+delta);
+  setLedgerPeriod('today',false,true);
+}
+function resetLedgerDay(){ ledgerDayOffset=0; setLedgerPeriod('today',false,true); }
+
+function ledgerMonthBounds(){
+  const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+ledgerMonthOffset);
+  const start=localDateStr(d);
+  const e=new Date(d.getFullYear(),d.getMonth()+1,0);
+  let end=localDateStr(e);
+  if(ledgerMonthOffset===0 && end>todayStr()) end=todayStr();
+  return {start,end,date:d};
+}
+function updateLedgerMonthNavigator(){
+  const nav=document.getElementById('monthNavigator'), label=document.getElementById('ledgerMonthLabel');
+  if(!nav||!label)return;
+  nav.style.display=ledgerPeriod==='month'?'flex':'none';
+  if(ledgerPeriod==='month'){
+    const b=ledgerMonthBounds();
+    label.textContent=b.date.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    const cur=document.getElementById('ledgerMonthCurrentBtn');
+    if(cur)cur.style.visibility=ledgerMonthOffset===0?'hidden':'visible';
+  }
+}
+function shiftLedgerMonth(delta){ ledgerMonthOffset+=delta; setLedgerPeriod('month',true); }
+function resetLedgerMonth(){ ledgerMonthOffset=0; setLedgerPeriod('month',true); }
 let insightPeriod = 'month';
 let pieChartInstance = null;
 
@@ -1384,6 +1449,10 @@ function refreshForLocalDateChange(){
 function renderAll(){
   renderBalance();
   renderFilters();
+  updateLedgerMonthNavigator();
+  updateLedgerDayNavigator();
+  const custom=document.getElementById('customDatePanel');
+  if(custom) custom.style.display=ledgerPeriod==='custom'?'block':'none';
   renderTransactions();
   renderAccounts();
   renderCategories();
@@ -1504,13 +1573,11 @@ let pendingShoppingBatchIds = [];
 
 function shoppingCalcText(i){
   const qty=Number(i.qty)||0, rate=Number(i.rate)||0, total=Number(i.actual)||Number(i.estimate)||0;
-  if(rate && qty && i.rateUnit && i.unit){
-    return `${i.item} ₹${rate.toLocaleString('en-IN',{maximumFractionDigits:2})}/${i.rateUnit} × ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
-  }
-  if(qty && i.unit) return `${i.item} ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} ${i.unit} = ${inr(total)}`;
-  // For unitless one-off lines such as dishes, tips, tax or fees, keep the display clean.
-  if(rate && qty>1) return `${i.item} ₹${rate.toLocaleString('en-IN',{maximumFractionDigits:2})} × ${qty.toLocaleString('en-IN',{maximumFractionDigits:2})} = ${inr(total)}`;
-  return `${i.item} = ${inr(total)}`;
+  const n=v=>Number(v).toLocaleString('en-IN',{maximumFractionDigits:2});
+  const unit=String(i.unit||'').trim();
+  if(rate && qty){ return `${n(qty)}${unit||''}x${i.item}@${n(rate)}`; }
+  if(qty && unit && total){ return `${n(qty)}${unit}x${i.item}@${n(total/qty)}`; }
+  return `${i.item}@${n(total)}`;
 }
 
 function shoppingBatchToKhata(){
@@ -1613,9 +1680,10 @@ function monthsAgoStr(n){
 }
 function ledgerDateFilter(t){
   if (!t.date) return ledgerPeriod === 'all';
-  if (ledgerPeriod === 'today') return t.date === todayStr();
+  if (ledgerPeriod === 'today') return t.date === ledgerDayStr();
   if (ledgerPeriod === 'week') return t.date >= lastSevenDaysStartStr() && t.date <= yesterdayStr();
-  if (ledgerPeriod === 'month') return t.date >= startOfMonthStr() && t.date <= todayStr();
+  if (ledgerPeriod === 'month') { const b=ledgerMonthBounds(); return t.date >= b.start && t.date <= b.end; }
+  if (ledgerPeriod === 'custom') return true;
   return true; // all
 }
 
@@ -1654,9 +1722,22 @@ function onFltCategoryChange(preserveSub){
   renderTransactions();
 }
 
-function setLedgerPeriod(p){
+function setLedgerPeriod(p,keepMonth=false,keepDay=false){
   ledgerPeriod = p;
+  if(p==='month' && !keepMonth) ledgerMonthOffset=0;
+  if(p==='today' && !keepDay) ledgerDayOffset=0;
   document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period===p));
+  const custom=document.getElementById('customDatePanel');
+  if(custom) custom.style.display=p==='custom'?'block':'none';
+  if(p==='custom'){
+    const from=filterDateIso('fltFromDate'),to=filterDateIso('fltToDate');
+    if(!from&&!to){
+      setManualDate('from',startOfMonthStr());
+      setManualDate('to',todayStr());
+    }
+  }
+  updateLedgerMonthNavigator();
+  updateLedgerDayNavigator();
   renderTransactions();
 }
 function toggleMoreFilters(){
@@ -1734,6 +1815,12 @@ function onManualDateInput(which){
   renderTransactions();
 }
 function onDateRangeChange(changed){
+  if(ledgerPeriod!=='custom'){
+    ledgerPeriod='custom';
+    document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on',b.dataset.period==='custom'));
+    const custom=document.getElementById('customDatePanel'); if(custom)custom.style.display='block';
+    updateLedgerDayNavigator(); updateLedgerMonthNavigator();
+  }
   const field = document.getElementById(changed==='from'?'fltFromDate':'fltToDate');
   const iso = parseManualDate(field.value);
   if (iso) setManualDate(changed,iso);
@@ -1772,7 +1859,12 @@ function clearAllFilters(){
   sortDir = 'desc';
   document.getElementById('sortDirBtn').textContent = '↓';
   ledgerPeriod = 'today';
+  ledgerDayOffset = 0;
+  ledgerMonthOffset = 0;
   document.querySelectorAll('#periodChips button').forEach(b=>b.classList.toggle('on', b.dataset.period==='today'));
+  const custom=document.getElementById('customDatePanel'); if(custom) custom.style.display='none';
+  updateLedgerDayNavigator();
+  updateLedgerMonthNavigator();
   document.getElementById('moreFilters').style.display = 'none';
   document.getElementById('moreFiltersBtn').textContent = '+ More filters';
   renderTransactions();
@@ -1811,7 +1903,9 @@ function renderTransactions(){
   const q = (document.getElementById('txSearch').value || '').trim().toLowerCase();
   const fromDate = filterDateIso('fltFromDate');
   const toDate = filterDateIso('fltToDate');
-  const hasCustomDateRange = !!(fromDate || toDate);
+  // From/To dates are active ONLY while the Custom chip is selected.
+  // Hidden Custom dates must never override Today / Last 7 days / Month / All.
+  const hasCustomDateRange = ledgerPeriod==='custom' && !!(fromDate || toDate);
   const sortBy = document.getElementById('sortBy').value;
   const searchBox = document.getElementById('txSearch');
   const searchClear = document.getElementById('txSearchClear');
@@ -1823,12 +1917,14 @@ function renderTransactions(){
     ? 'Searching all fields within the selected dates'
     : hasCustomDateRange ? 'Showing the selected date range' : 'Searching all dates and fields';
 
-  // A search is global across every date; clearing it restores the selected
-  // period (Today by default). A custom From/To range also overrides the chips.
+  // Search remains global across dates. Without a search, the selected period
+  // controls the date filter. Custom uses From/To; every other chip ignores them.
   let list = state.transactions.slice();
-  if (!q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
-  if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
-  if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+  if (!q && ledgerPeriod!=='custom') list = list.filter(ledgerDateFilter);
+  if (ledgerPeriod==='custom') {
+    if (fromDate) list = list.filter(t=>t.date && t.date>=fromDate);
+    if (toDate) list = list.filter(t=>t.date && t.date<=toDate);
+  }
   if (accF) list = list.filter(t=>t.accountId===accF);
   if (catF) list = list.filter(t=>t.categoryId===catF);
   if (subF) list = list.filter(t=>t.subcategory===subF);
@@ -1935,7 +2031,7 @@ function renderCategories(){
         </div>
       </div>
       <div class="subchips">
-        ${(c.subs||[]).slice().sort(alphaCompare).map(s=>`<span class="chip">${escapeHtml(s)}<button onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
+        ${(c.subs||[]).slice().sort(alphaCompare).map(s=>`<span class="chip">${escapeHtml(s)}<button title="Edit / merge sub-category" onclick="editSubcat('${c.id}','${escapeAttr(s)}')">✎</button><button title="Remove unused sub-category" onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
       </div>
       <div class="add-chip-inline">
         <input placeholder="Add sub-category" id="newsub-${c.id}">
@@ -2427,6 +2523,7 @@ function populateSubcatOptions(selected){
 }
 
 function saveTx(){
+  updateUnitHint();
   const amount = parseFloat(document.getElementById('txAmount').value);
   if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
   const selectedAccount = document.getElementById('txAccount').value;
@@ -2722,11 +2819,30 @@ function addSubcat(catId){
   cloudSaveMeta();
   renderAll();
 }
+function editSubcat(catId, sub){
+  const cat=state.categories.find(c=>c.id===catId); if(!cat)return;
+  const next=prompt(`Rename / merge sub-category “${sub}” to:`,sub);
+  if(next===null)return;
+  const name=next.trim(); if(!name || name===sub)return;
+  const existing=(cat.subs||[]).find(s=>s!==sub && s.toLowerCase()===name.toLowerCase());
+  const finalName=existing||name;
+  const used=state.transactions.filter(t=>t.categoryId===catId && t.subcategory===sub);
+  const msg=existing
+    ? `Merge “${sub}” into existing “${finalName}”? ${used.length} transaction${used.length===1?'':'s'} will be updated.`
+    : `Rename “${sub}” to “${finalName}”? ${used.length} transaction${used.length===1?'':'s'} will be updated.`;
+  if(!confirm(msg))return;
+  used.forEach(t=>{t.subcategory=finalName;queueOp({kind:'tx-set',id:t.id,payload:t});});
+  (state.shoppingList||[]).forEach(i=>{if(i.categoryId===catId && i.subcategory===sub)i.subcategory=finalName;});
+  cat.subs=(cat.subs||[]).filter(s=>s!==sub && s!==finalName); cat.subs.push(finalName);
+  localSave(); cloudSaveMeta(); renderAll(); flushQueue();
+}
 function removeSubcat(catId, sub){
-  const cat = state.categories.find(c=>c.id===catId);
+  const cat = state.categories.find(c=>c.id===catId); if(!cat)return;
+  const used=state.transactions.filter(t=>t.categoryId===catId && t.subcategory===sub).length;
+  if(used){alert(`“${sub}” is used by ${used} transaction${used===1?'':'s'}. Use ✎ Edit to rename or merge it first.`);return;}
+  if(!confirm(`Remove unused sub-category “${sub}”?`))return;
   cat.subs = (cat.subs||[]).filter(s=>s!==sub);
-  cloudSaveMeta();
-  renderAll();
+  cloudSaveMeta(); renderAll();
 }
 
 /* =========================================================================
@@ -2749,7 +2865,7 @@ async function exportExcel(exportAll=false, accountOverride=''){
   const q = qRaw.toLowerCase();
   const fromDate = exportAll || accountOverride ? '' : filterDateIso('fltFromDate');
   const toDate = exportAll || accountOverride ? '' : filterDateIso('fltToDate');
-  const hasCustomDateRange = !!(fromDate || toDate);
+  const hasCustomDateRange = ledgerPeriod==='custom' && !!(fromDate || toDate);
 
   let list = state.transactions.slice();
   if (!exportAll && !accountOverride && !q && !hasCustomDateRange) list = list.filter(ledgerDateFilter);
@@ -2783,7 +2899,7 @@ async function exportExcel(exportAll=false, accountOverride=''){
   if (commonSub) filters.push('Sub-category: '+commonSub);
   if (commonType) filters.push('Type: '+commonType);
   if (fromDate || toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if (!exportAll && !q) filters.push('Period: '+({today:'Today',week:'Last 7 days',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  else if (!exportAll && !q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffset===0?'Today':ledgerDayOffset===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
   if (qRaw) filters.push('Search: '+qRaw);
   if (minRaw || maxRaw) filters.push('Amount: '+(minRaw||'0')+' to '+(maxRaw||'Any'));
 
@@ -2894,7 +3010,7 @@ function getReportData(exportAll=false, accountOverride=''){
   if(subF) filters.push('Sub-category: '+subF);
   if(typeF) filters.push('Type: '+(typeF==='credit'?'Credit':typeF==='debit'?'Debit':'Transfer'));
   if(fromDate||toDate) filters.push('Period: '+(fromDate||'Beginning')+' to '+(toDate||'Latest'));
-  else if(!exportAll&&!q) filters.push('Period: '+({today:'Today',week:'Last 7 days',month:'This month',all:'All'}[ledgerPeriod]||ledgerPeriod));
+  else if(!exportAll&&!q) filters.push('Period: '+(ledgerPeriod==='month'?ledgerMonthBounds().date.toLocaleDateString('en-IN',{month:'long',year:'numeric'}):(ledgerPeriod==='today'?(ledgerDayOffset===0?'Today':ledgerDayOffset===-1?'Yesterday · '+ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):ledgerDayDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})):({week:'Last 7 days',all:'All'}[ledgerPeriod]||ledgerPeriod))));
   if(qRaw) filters.push('Search: '+qRaw);
   const credit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='credit'?Number(t.amount)||0:0),0);
   const debit=list.reduce((s,t)=>s+(!t.isTransfer&&t.type==='debit'?Number(t.amount)||0:0),0);
@@ -3062,6 +3178,42 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ===== Calculator + shopping rate helper (repaired) ===== */
+function recalculateShoppingRateFromAmount(){
+  const qty=Number(document.getElementById('shopQty')?.value)||0;
+  const amount=Number(document.getElementById('shopEstimate')?.value)||0;
+  const rate=document.getElementById('shopRate');
+  if(!rate||!qty||!amount)return;
+  rate.value=Math.round((amount/qty)*100)/100;
+}
+function formatTripTimeInput(el){
+  const raw=String(el.value||'');
+  let digits=raw.replace(/\D/g,'').slice(0,4);
+  if(digits.length>=2){
+    const h=Number(digits.slice(0,2));
+    if(h<=23) el.value=digits.slice(0,2)+':'+digits.slice(2);
+    else el.value=digits.slice(0,1);
+  } else {
+    el.value=digits;
+  }
+  try{ el.setSelectionRange(el.value.length,el.value.length); }catch(e){}
+}
+function normaliseTripTime(v){
+  const m=String(v||'').trim().match(/^(\d{1,2}):?(\d{2})$/);
+  if(!m)return '';
+  const h=Number(m[1]),min=Number(m[2]);
+  if(h>23||min>59)return '';
+  return String(h).padStart(2,'0')+':'+String(min).padStart(2,'0');
+}
+function saveTripTime(id,el){
+  const v=normaliseTripTime(el.value);
+  if(!v){ if(el.value)alert('Enter time as HH:MM, for example 09:30 or 18:45.'); return; }
+  el.value=v; updateTripShop(id,'time',v);
+}
+function setTripTimeNow(id,el){
+  const d=new Date(),v=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  el.value=v; updateTripShop(id,'time',v);
+}
+
 function calculateShoppingEstimate(){
  const qty=Number(document.getElementById('shopQty')?.value)||0, unit=document.getElementById('shopUnit')?.value||'';
  const rate=Number(document.getElementById('shopRate')?.value)||0, ru=document.getElementById('shopRateUnit')?.value||'', out=document.getElementById('shopEstimate');
@@ -3261,6 +3413,7 @@ function addShoppingItem(){
   if(!shop)return;
   const item=document.getElementById('shopItem').value.trim();
   if(!item){document.getElementById('shopItem').focus();return;}
+  if(document.getElementById('shopEstimate')?.dataset.manual==='1') recalculateShoppingRateFromAmount();
   const qty=parseFloat(document.getElementById('shopQty').value)||1;
   const unit=document.getElementById('shopUnit').value;
   const rate=parseFloat(document.getElementById('shopRate').value)||0;
@@ -3320,7 +3473,7 @@ function renderShoppingList(){
       <div class="trip-shop-head"><div class="trip-shop-name">${shoppingEscape(s.name)}</div><b class="mono">${inr(subtotal)}</b></div>
       <div class="trip-shop-meta">${items.length} item${items.length===1?'':'s'}</div>
       <div class="trip-shop-items">${items.length?items.map(i=>`<div class="trip-shop-item"><span>${shoppingEscape(shoppingCalcText(i))}</span><span><button class="icon-btn" onclick="editShoppingItem('${i.id}')">✎</button> <button class="icon-btn" onclick="deleteShoppingItem('${i.id}')">×</button></span></div>`).join(''):'<div class="shop-empty" style="padding:8px">No items yet.</div>'}</div>
-      <div class="trip-shop-controls"><input type="time" value="${shoppingEscape(s.time||'')}" onchange="updateTripShop('${s.id}','time',this.value)"><select onchange="updateTripShop('${s.id}','accountId',this.value)">${accOpts}</select></div>
+      <div class="trip-shop-controls"><div style="display:flex;gap:5px;align-items:center;flex:1"><input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${shoppingEscape(s.time||'')}" oninput="formatTripTimeInput(this)" onchange="saveTripTime('${s.id}',this)" style="min-width:82px;flex:1"><button type="button" class="icon-btn" title="Use current time" onclick="setTripTimeNow('${s.id}',this.previousElementSibling)">Now</button></div><select onchange="updateTripShop('${s.id}','accountId',this.value)">${accOpts}</select></div>
       <div class="trip-shop-actions"><button onclick="openShoppingTripShop('${s.id}')">+ Add / Edit Items</button><button onclick="removeShoppingTripShop('${s.id}')">Remove Shop</button></div>
     </div>`;
   }).join(''):'<div class="shop-empty">Tap “+ Add Shop” to start this shopping trip.</div>';
@@ -3337,12 +3490,17 @@ function clearCurrentShoppingBill(){
 }
 function postShoppingTripToKhata(){
   ensureShoppingTripState();
+  if(shoppingTripPosting){alert('This shopping trip is already being posted. Finish or cancel the current Khata entry first.');return;}
   const items=state.shoppingList.filter(i=>!i.txId);
   if(!items.length){alert('Add at least one item first.');return;}
   const groups=state.shoppingTrip.shops.map(s=>({shop:s,items:items.filter(i=>i.tripShopId===s.id)})).filter(g=>g.items.length);
   const missing=groups.find(g=>!g.shop.accountId);
   if(missing){alert(`Choose payment account for ${missing.shop.name}.`);return;}
-  shoppingTripPosting={groups,index:0,date:document.getElementById('shopBillDate').value||localDateStr()};
+  const date=document.getElementById('shopBillDate').value||localDateStr();
+  const total=items.reduce((sum,i)=>sum+(Number(i.estimate)||Number(i.actual)||0),0);
+  const preview=groups.map(g=>`${g.shop.name}: ${g.items.map(shoppingCalcText).join(' · ')} = ${inr(g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0))}`).join('\n\n');
+  if(!confirm(`Post shopping trip dated ${formatDate(date)}?\n\n${preview}\n\nTrip total: ${inr(total)}\n\nContinue to Khata entries?`))return;
+  shoppingTripPosting={groups,index:0,date};
   openNextShoppingTripTransaction();
 }
 function openNextShoppingTripTransaction(){
