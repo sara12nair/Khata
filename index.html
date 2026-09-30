@@ -503,7 +503,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 260930-2118</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 260930-2200</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -2508,7 +2508,9 @@ function openTxModal(id){
     setTxType('debit');
     document.getElementById('txAmount').value = '';
     const now = new Date();
-    document.getElementById('txDate').value = localDateStr(now);
+    const ledgerSearchActive = !!(document.getElementById('ledgerSearch')?.value || '').trim();
+    const addDate = (ledgerPeriod==='today' && !ledgerSearchActive) ? ledgerDayStr() : localDateStr(now);
+    document.getElementById('txDate').value = addDate;
     document.getElementById('txTime').value = now.toTimeString().slice(0,5);
     populateCategoryOptions();
     document.getElementById('txNote').value = '';
