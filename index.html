@@ -503,7 +503,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 260930-2200</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-0910</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -535,6 +535,10 @@ input,select,textarea{font-family:inherit;}
       <button type="button" class="icon-btn" onclick="shiftLedgerMonth(-1)" title="Previous month">‹</button>
       <b id="ledgerMonthLabel" style="min-width:150px;text-align:center"></b>
       <button type="button" class="icon-btn" onclick="shiftLedgerMonth(1)" title="Next month">›</button>
+      <label title="Choose exact date" aria-label="Choose exact ledger date" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--paper-line);border-radius:10px;background:var(--white);cursor:pointer;overflow:hidden;">
+        <span aria-hidden="true" style="font-size:17px;line-height:1;">📅</span>
+        <input type="date" id="ledgerMonthDatePicker" aria-label="Choose exact ledger date" onchange="chooseLedgerDay(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+      </label>
       <button type="button" class="link-btn" id="ledgerMonthCurrentBtn" onclick="resetLedgerMonth()">Current</button>
     </div>
     <div id="dayNavigator" style="display:none;align-items:center;justify-content:center;gap:7px;margin:-2px 0 10px;flex-wrap:wrap;">
@@ -632,10 +636,10 @@ input,select,textarea{font-family:inherit;}
       <input id="shopStore" type="hidden">
       <div class="shop-grid">
         <input class="shop-item" id="shopItem" placeholder="Item e.g. Onion" oninput="refreshShoppingHistoryHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();addShoppingItem()}">
-        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" value="1" placeholder="Qty" oninput="calculateShoppingEstimate()">
-        <select id="shopUnit" onchange="syncShoppingRateUnit();calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
+        <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" value="1" placeholder="Qty" oninput="document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()">
+        <select id="shopUnit" onchange="syncShoppingRateUnit();document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
         <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
-        <select id="shopRateUnit" onchange="calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
+        <select id="shopRateUnit" onchange="document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
         <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹" oninput="this.dataset.manual=this.value!==''?'1':''; if(this.value==='') calculateShoppingEstimate(); else recalculateShoppingRateFromAmount()">
       </div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
@@ -787,7 +791,7 @@ input,select,textarea{font-family:inherit;}
       <select id="txCategory" onfocus="this.dataset.previous=this.value" onchange="onTxCategoryChange()"></select>
     </div>
     <div class="field">
-      <label>Sub-category</label>
+      <label>Item / sub-category</label>
       <select id="txSubcategory" onfocus="this.dataset.previous=this.value" onchange="onTxSubcategoryChange()"></select>
     </div>
     <div class="field"><label>Note / Item name</label><textarea id="txNote" placeholder="e.g. Swiggy dinner, electricity bill..."></textarea></div>
@@ -1476,6 +1480,12 @@ function updateLedgerMonthNavigator(){
     label.textContent=b.date.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
     const cur=document.getElementById('ledgerMonthCurrentBtn');
     if(cur)cur.style.visibility=ledgerMonthOffset===0?'hidden':'visible';
+    const picker=document.getElementById('ledgerMonthDatePicker');
+    if(picker){
+      picker.max=todayStr();
+      const preferred=(ledgerSelectedDay && ledgerSelectedDay>=b.start && ledgerSelectedDay<=b.end) ? ledgerSelectedDay : b.end;
+      picker.value=preferred;
+    }
   }
 }
 function shiftLedgerMonth(delta){ ledgerMonthOffset+=delta; setLedgerPeriod('month',true); }
@@ -1620,9 +1630,9 @@ let pendingShoppingBatchIds = [];
 function shoppingCalcText(i){
   const qty=Number(i.qty)||0, rate=Number(i.rate)||0, total=Number(i.actual)||Number(i.estimate)||0;
   const n=v=>Number(v).toLocaleString('en-IN',{maximumFractionDigits:2});
-  const unit=String(i.unit||'').trim();
-  if(rate && qty){ return `${n(qty)}${unit||''}x${i.item}@${n(rate)}`; }
-  if(qty && unit && total){ return `${n(qty)}${unit}x${i.item}@${n(total/qty)}`; }
+  const unit=String(i.unit||'').trim(), rateUnit=String(i.rateUnit||unit||'').trim();
+  if(rate && qty){ return `${n(qty)}×${i.item}@${n(rate)}${rateUnit?'/'+rateUnit:''}`; }
+  if(qty && total){ return `${n(qty)}×${i.item}@${n(total/qty)}${rateUnit?'/'+rateUnit:''}`; }
   return `${i.item}@${n(total)}`;
 }
 
@@ -2400,6 +2410,14 @@ function onTxCategoryChange(){
   sel.dataset.previous = sel.value;
   populateSubcatOptions();
   refreshItemCategoryHint(false);
+  const itemSel = document.getElementById('txSubcategory');
+  if(itemSel){
+    setTimeout(()=>{
+      itemSel.focus();
+      // showPicker is supported by current Chromium; focus remains the fallback.
+      try{ if(typeof itemSel.showPicker==='function') itemSel.showPicker(); }catch(e){}
+    },0);
+  }
 }
 function onTxSubcategoryChange(){
   const sel = document.getElementById('txSubcategory');
@@ -2411,7 +2429,7 @@ function onTxSubcategoryChange(){
   const previous = sel.dataset.previous || '';
   const catId = document.getElementById('txCategory').value;
   const cat = state.categories.find(c=>c.id===catId);
-  const name = prompt('Enter the new sub-category name:');
+  const name = prompt('Enter the new item / sub-category name:');
   if (!cat || !name || !name.trim()) {
     sel.value = previous;
     return;
@@ -2627,15 +2645,31 @@ function populateSubcatOptions(selected){
   const catId = document.getElementById('txCategory').value;
   const cat = state.categories.find(c=>c.id===catId);
   const subSel = document.getElementById('txSubcategory');
-  const options = (cat && cat.subs || []).slice().sort(alphaCompare).map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  // Sub-category is optional. Always offer None first and default to it
-  // unless an existing/suggested sub-category is explicitly supplied.
-  subSel.innerHTML = '<option value="">— None —</option>' + options + (cat ? '<option value="__add__">＋ Add new sub-category…</option>' : '');
-  if (selected && cat && (cat.subs||[]).includes(selected)) {
-    subSel.value = selected;
-  } else {
-    subSel.value = '';
-  }
+
+  // Rank the category's saved items/sub-categories by actual use, then alphabetically.
+  // This keeps the full category list but makes common choices quicker to reach.
+  const usage = new Map();
+  (state.transactions || []).forEach(t=>{
+    if(t.categoryId !== catId || !t.subcategory) return;
+    const key = String(t.subcategory).trim();
+    if(!key) return;
+    const old = usage.get(key) || {count:0,last:''};
+    old.count += 1;
+    const stamp = `${t.date||''} ${t.time||''}`;
+    if(stamp > old.last) old.last = stamp;
+    usage.set(key, old);
+  });
+
+  const items = (cat && cat.subs || []).slice().sort(alphaCompare);
+
+  const options = items.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  subSel.innerHTML =
+    '<option value="">— Choose item / None —</option>' +
+    options +
+    (cat ? '<option value="__add__">＋ Add new item / sub-category…</option>' : '');
+
+  if (selected && cat && (cat.subs||[]).includes(selected)) subSel.value = selected;
+  else subSel.value = '';
   subSel.dataset.previous = subSel.value;
 }
 
@@ -3306,7 +3340,8 @@ function recalculateShoppingRateFromAmount(){
   const qty=Number(document.getElementById('shopQty')?.value)||0;
   const amount=Number(document.getElementById('shopEstimate')?.value)||0;
   const rate=document.getElementById('shopRate');
-  if(!rate||!qty||!amount)return;
+  if(!rate)return;
+  if(!qty||!amount){rate.value='';return;}
   rate.value=Math.round((amount/qty)*100)/100;
 }
 function formatTripTimeInput(el){
@@ -3544,7 +3579,8 @@ function addShoppingItem(){
   const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
   let estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
   if(!estimate && qty && rate){calculateShoppingEstimate();estimate=parseFloat(document.getElementById('shopEstimate').value)||0;}
-  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,createdAt:new Date().toISOString()};
+  const knownCategory=getItemCategoryProfile(item);
+  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,categoryId:knownCategory?.categoryId||'',subcategory:knownCategory?.subcategory||'',createdAt:new Date().toISOString()};
   if(editingShoppingId){
     const old=state.shoppingList.find(x=>x.id===editingShoppingId);
     if(old)Object.assign(old,data);
@@ -3612,6 +3648,23 @@ function clearCurrentShoppingBill(){
   localSave();closeShoppingItemEditor();
   document.getElementById('shopBillDate').value=localDateStr();renderShoppingList();
 }
+function roundShoppingRupee(v){
+  const n=Number(v)||0;
+  return Math.floor(n+0.5);
+}
+function shoppingItemCategoryProfile(item){
+  if(item.categoryId && state.categories.some(c=>c.id===item.categoryId)){
+    return {categoryId:item.categoryId,subcategory:item.subcategory||''};
+  }
+  const p=getItemCategoryProfile(item.item);
+  return p ? {categoryId:p.categoryId,subcategory:p.subcategory||''} : null;
+}
+function commonShoppingCategory(items){
+  const profiles=items.map(shoppingItemCategoryProfile);
+  if(!profiles.length || profiles.some(p=>!p)) return null;
+  const first=profiles[0];
+  return profiles.every(p=>p.categoryId===first.categoryId && p.subcategory===first.subcategory) ? first : null;
+}
 function postShoppingTripToKhata(){
   ensureShoppingTripState();
   if(shoppingTripPosting){alert('This shopping trip is already being posted. Finish or cancel the current Khata entry first.');return;}
@@ -3621,8 +3674,13 @@ function postShoppingTripToKhata(){
   const missing=groups.find(g=>!g.shop.accountId);
   if(missing){alert(`Choose payment account for ${missing.shop.name}.`);return;}
   const date=document.getElementById('shopBillDate').value||localDateStr();
-  const total=items.reduce((sum,i)=>sum+(Number(i.estimate)||Number(i.actual)||0),0);
-  const preview=groups.map(g=>`${g.shop.name}: ${g.items.map(shoppingCalcText).join(' · ')} = ${inr(g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0))}`).join('\n\n');
+  const total=groups.reduce((sum,g)=>sum+roundShoppingRupee(g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0)),0);
+  const preview=groups.map(g=>{
+    const raw=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
+    const rounded=roundShoppingRupee(raw);
+    const rounding=Math.abs(raw-rounded)>=0.001 ? ` (rounded from ${inr(raw)})` : '';
+    return `${g.shop.name}: ${g.items.map(shoppingCalcText).join(' · ')} = ${inr(rounded)}${rounding}`;
+  }).join('\n\n');
   if(!confirm(`Post shopping trip dated ${formatDate(date)}?\n\n${preview}\n\nTrip total: ${inr(total)}\n\nContinue to Khata entries?`))return;
   shoppingTripPosting={groups,index:0,date};
   openNextShoppingTripTransaction();
@@ -3640,12 +3698,25 @@ function openNextShoppingTripTransaction(){
   document.getElementById('txDate').value=shoppingTripPosting.date;
   if(g.shop.time)document.getElementById('txTime').value=g.shop.time;
   document.getElementById('txAccount').value=g.shop.accountId;
-  document.getElementById('txAmount').value=Math.round(g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0)*100)/100;
+  const rawShopTotal=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
+  document.getElementById('txAmount').value=roundShoppingRupee(rawShopTotal);
   document.getElementById('txNote').value=g.items.map(shoppingCalcText).join(' · ');
   document.getElementById('txShop').value=g.shop.name;
   document.getElementById('txItemName').value='';document.getElementById('txQty').value='';document.getElementById('txUnit').value='';
-  const cat=document.getElementById('txCategory');cat.value='';cat.dataset.previous='';populateSubcatOptions('');
+  const cat=document.getElementById('txCategory');
+  const commonCat=commonShoppingCategory(g.items);
+  if(commonCat && [...cat.options].some(o=>o.value===commonCat.categoryId)){
+    cat.value=commonCat.categoryId;cat.dataset.previous=commonCat.categoryId;populateSubcatOptions(commonCat.subcategory);
+  }else{
+    cat.value='';cat.dataset.previous='';populateSubcatOptions('');
+    const hint=document.getElementById('itemCategoryHint');
+    if(hint){
+      hint.textContent='Category required before posting this shopping entry. Items are new or use different categories.';
+      hint.classList.add('show');
+    }
+  }
   setItemFieldsVisible(true);
+  updateUnitHint();
 }
 /* Hook only the end of successful saveTx: if a trip is being posted, advance to next shop.
    Existing saveTx remains the source of truth for ledger/account/category validation and cloud queue. */
