@@ -101,7 +101,7 @@ input,select,textarea{font-family:inherit;}
   content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--brass);
 }
 .balance-label{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;}
-.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:700;margin-top:4px;}
+.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:27px;font-weight:700;margin-top:4px;}
 .balance-sub{display:flex;gap:18px;margin-top:12px;font-size:13px;}
 .balance-sub span.credit{color:var(--credit);font-weight:600;}
 .balance-sub span.debit{color:var(--debit);font-weight:600;}
@@ -279,7 +279,7 @@ input,select,textarea{font-family:inherit;}
 .search-scope-hint.show{display:block;}
 .visible-summary{
   background:var(--white);border:1px solid var(--paper-line);border-radius:10px;
-  padding:8px 10px;margin:0 0 9px;font-size:11.5px;font-weight:600;
+  padding:9px 10px;margin:0 0 9px;font-size:13px;font-weight:650;
   color:var(--ink-soft);white-space:nowrap;overflow-x:auto;scrollbar-width:none;
 }
 .visible-summary::-webkit-scrollbar{display:none;}
@@ -503,7 +503,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-0910</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-1108</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -587,6 +587,12 @@ input,select,textarea{font-family:inherit;}
       </div>
     </div>
     <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0 · Difference: ₹0</div>
+    <div id="txSelectControls" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:-3px 0 9px;">
+      <button type="button" class="link-btn" id="txSelectToggle" onclick="toggleTxSelectMode()">☑ Select</button>
+      <button type="button" class="icon-btn" id="txSelectAll" onclick="selectAllVisibleTx()" style="display:none;">Select all visible</button>
+      <button type="button" class="link-btn" id="txSelectClear" onclick="clearTxSelection()" style="display:none;">Clear</button>
+      <span id="txSelectedSummary" class="mono" style="display:none;margin-left:auto;font-size:13px;font-weight:700;"></span>
+    </div>
     <div id="txList"></div>
   </div>
 
@@ -769,6 +775,10 @@ input,select,textarea{font-family:inherit;}
   <div class="modal">
     <button class="close-x" onclick="requestCloseTxModal()">✕</button>
     <h3 id="txModalTitle">Add transaction</h3>
+    <div id="txHistoryGuard" style="display:none;margin:0 0 12px;padding:9px 10px;border:1px solid var(--paper-line);border-radius:10px;background:var(--brass-soft);font-size:12px;line-height:1.4;">
+      🔒 Historical transaction protected.
+      <button type="button" class="link-btn" id="txUnlockBtn" onclick="unlockHistoricalTx()" style="padding:2px 4px;">✎ Edit historical transaction</button>
+    </div>
     <input type="hidden" id="txId">
     <div class="field">
       <label>Type</label>
@@ -821,6 +831,9 @@ input,select,textarea{font-family:inherit;}
             <option value="packet">packet</option>
           </select>
         </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px;">
+        <button type="button" class="icon-btn" onclick="openCalculator()" title="Open calculator" aria-label="Open calculator">🧮 Calculator</button>
       </div>
       <div class="field">
         <label>Shop <span style="font-weight:400;">(optional)</span></label>
@@ -1950,6 +1963,37 @@ function timestampYYMMDDHHMM(d=new Date()){
   return d.getFullYear().toString().slice(-2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
 }
 
+let txSelectMode=false;
+const txSelectedIds=new Set();
+let txVisibleIds=[];
+
+function updateTxSelectionUI(){
+  const toggle=document.getElementById('txSelectToggle');
+  const all=document.getElementById('txSelectAll');
+  const clear=document.getElementById('txSelectClear');
+  const summary=document.getElementById('txSelectedSummary');
+  if(toggle) toggle.textContent=txSelectMode?'✓ Done':'☑ Select';
+  if(all) all.style.display=txSelectMode?'inline-block':'none';
+  const chosen=(state.transactions||[]).filter(t=>txSelectedIds.has(t.id));
+  const total=chosen.reduce((s,t)=>s+(!t.isTransfer?(Number(t.amount)||0):0),0);
+  if(clear) clear.style.display=(txSelectMode&&chosen.length)?'inline-block':'none';
+  if(summary){
+    summary.style.display=txSelectMode?'inline-block':'none';
+    summary.textContent=`Selected: ${chosen.length} · Total: ${inr(total)}`;
+  }
+}
+function toggleTxSelectMode(){
+  txSelectMode=!txSelectMode;
+  if(!txSelectMode) txSelectedIds.clear();
+  renderTransactions();
+}
+function toggleTxSelection(id,checked){
+  if(checked) txSelectedIds.add(id); else txSelectedIds.delete(id);
+  updateTxSelectionUI();
+}
+function clearTxSelection(){ txSelectedIds.clear(); renderTransactions(); }
+function selectAllVisibleTx(){ txVisibleIds.forEach(id=>txSelectedIds.add(id)); renderTransactions(); }
+
 function renderTransactions(){
   const accF = document.getElementById('fltAccount').value;
   const catF = document.getElementById('fltCategory').value;
@@ -2035,6 +2079,9 @@ function renderTransactions(){
     });
   }
 
+  txVisibleIds=list.map(t=>t.id);
+  updateTxSelectionUI();
+
   const wrap = document.getElementById('txList');
   if (!list.length) {
     wrap.innerHTML = q
@@ -2050,7 +2097,8 @@ function renderTransactions(){
     if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
     if (t.shop) itemBits.push(escapeHtml(t.shop));
     const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
-    return `<div class="tx-row ${t.type}" onclick="${t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`}">
+    return `<div class="tx-row ${t.type}" onclick="${txSelectMode?`toggleTxSelection('${t.id}',!txSelectedIds.has('${t.id}'));renderTransactions()`:(t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`)}">
+      ${txSelectMode?`<input class="tx-select-check" type="checkbox" ${txSelectedIds.has(t.id)?'checked':''} aria-label="Select transaction" onclick="event.stopPropagation()" onchange="toggleTxSelection('${t.id}',this.checked)" style="width:20px;height:20px;flex:0 0 auto;accent-color:var(--ink);">`:''}
       <div class="tx-icon" title="${isSingleDayView?'Daily transaction '+(idx+1):(t.type==='credit'?'Credit':'Debit')}">${icon}</div>
       <div class="tx-mid">
         <div class="tx-cat">${t.isTransfer?'Transfer':escapeHtml(cat?cat.name:'Uncategorised')}${t.subcategory?' · '+escapeHtml(t.subcategory):''}</div>
@@ -2493,6 +2541,43 @@ function initTxModalDrag(){
   const end=e=>{if(!dragging)return;dragging=false;modal.classList.remove('tx-dragging');try{title.releasePointerCapture(e.pointerId)}catch(_){}};
   title.addEventListener('pointerup',end); title.addEventListener('pointercancel',end);
 }
+let txHistoricalLocked=false;
+const txProtectedFieldIds=['txAmount','txDate','txTime','txAccount','txCategory','txSubcategory','txNote','txItemName','txQty','txUnit','txShop'];
+function setHistoricalTxLock(locked){
+  txHistoricalLocked=!!locked;
+  txProtectedFieldIds.forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    if(el.tagName==='SELECT') el.disabled=txHistoricalLocked;
+    else el.readOnly=txHistoricalLocked;
+  });
+  ['segDebit','segCredit','itemToggleBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=txHistoricalLocked;});
+  const guard=document.getElementById('txHistoryGuard');
+  if(guard) guard.style.display=txHistoricalLocked?'block':'none';
+}
+function unlockHistoricalTx(){
+  if(!confirm('Unlock this historical transaction for editing? Changes to date, amount or other details can affect past balances and reports.')) return;
+  setHistoricalTxLock(false);
+  const guard=document.getElementById('txHistoryGuard');
+  if(guard){guard.style.display='block';guard.firstChild.textContent='🔓 Historical transaction unlocked. ';}
+  const btn=document.getElementById('txUnlockBtn'); if(btn)btn.style.display='none';
+}
+function historicalChangeSummary(oldTx,newTx){
+  const changes=[];
+  const add=(label,a,b)=>{if(String(a??'')!==String(b??''))changes.push(`${label}: ${a||'—'} → ${b||'—'}`);};
+  add('Amount',inr(Number(oldTx.amount)||0),inr(Number(newTx.amount)||0));
+  add('Date',oldTx.date,newTx.date);
+  add('Time',oldTx.time,newTx.time);
+  add('Account',oldTx.accountId,newTx.accountId);
+  add('Category',oldTx.categoryId,newTx.categoryId);
+  add('Item / sub-category',oldTx.subcategory,newTx.subcategory);
+  add('Note',oldTx.note,newTx.note);
+  add('Item',oldTx.itemName,newTx.itemName);
+  add('Quantity',oldTx.qty,newTx.qty);
+  add('Unit',oldTx.unit,newTx.unit);
+  add('Shop',oldTx.shop,newTx.shop);
+  return changes;
+}
+
 function openTxModal(id){
   resetTxModalPosition();
   document.getElementById('txDate').max = localDateStr(new Date());
@@ -2500,6 +2585,8 @@ function openTxModal(id){
   document.getElementById('txDeleteBtn').style.display = id ? 'block' : 'none';
   document.getElementById('txCloneBtn').style.display = id ? 'block' : 'none';
   document.getElementById('txModalTitle').textContent = id ? 'Edit transaction' : 'Add transaction';
+  setHistoricalTxLock(false);
+  const unlockBtn=document.getElementById('txUnlockBtn'); if(unlockBtn) unlockBtn.style.display='inline-block';
 
   const accSel = document.getElementById('txAccount');
   populateTxAccountOptions();
@@ -2521,6 +2608,7 @@ function openTxModal(id){
       document.getElementById('txUnit').value = t.unit || '';
       document.getElementById('txShop').value = t.shop || '';
       hasItemDetails = !!(t.itemName || t.qty || t.shop);
+      if(t.date && t.date < localDateStr(new Date())) setHistoricalTxLock(true);
     }
   } else {
     setTxType('debit');
@@ -2674,6 +2762,7 @@ function populateSubcatOptions(selected){
 }
 
 function saveTx(){
+  if(txHistoricalLocked){ alert('This historical transaction is protected. Tap “Edit historical transaction” before making changes.'); return; }
   updateUnitHint();
   const amount = parseFloat(document.getElementById('txAmount').value);
   if (!amount || amount<=0) { alert('Enter a valid amount.'); return; }
@@ -2713,6 +2802,11 @@ function saveTx(){
     shop: document.getElementById('txShop').value.trim(),
     createdAt: existingTx?.createdAt || new Date().toISOString()
   };
+
+  if(existingTx && existingTx.date && existingTx.date < localDateStr(new Date())){
+    const changes=historicalChangeSummary(existingTx,tx);
+    if(changes.length && !confirm('Confirm changes to this historical transaction:\n\n'+changes.join('\n')+'\n\nSave these changes?')) return;
+  }
 
   if (!existingId) {
     const duplicate = state.transactions.find(t=>!t.isTransfer && t.type===tx.type && t.accountId===tx.accountId && t.date===tx.date && Number(t.amount)===Number(tx.amount) && normalizeItemName(t.note)===normalizeItemName(tx.note));
@@ -2774,7 +2868,9 @@ function saveTx(){
 function deleteCurrentTx(){
   const id = document.getElementById('txId').value;
   if (!id) return;
-  if (!confirm('Delete this transaction?')) return;
+  const oldTx=state.transactions.find(t=>t.id===id);
+  const detail=oldTx ? `${formatDate(oldTx.date)} · ${inr(oldTx.amount)}${oldTx.note?' · '+oldTx.note:''}` : 'this transaction';
+  if (!confirm(`Permanently delete ${detail}?\n\nThis cannot be undone.`)) return;
 
   state.transactions = state.transactions.filter(t=>t.id!==id);
   localSave();
