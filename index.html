@@ -101,7 +101,7 @@ input,select,textarea{font-family:inherit;}
   content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--brass);
 }
 .balance-label{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;}
-.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:27px;font-weight:700;margin-top:4px;}
+.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;margin-top:4px;}
 .balance-sub{display:flex;gap:18px;margin-top:12px;font-size:13px;}
 .balance-sub span.credit{color:var(--credit);font-weight:600;}
 .balance-sub span.debit{color:var(--debit);font-weight:600;}
@@ -279,7 +279,7 @@ input,select,textarea{font-family:inherit;}
 .search-scope-hint.show{display:block;}
 .visible-summary{
   background:var(--white);border:1px solid var(--paper-line);border-radius:10px;
-  padding:9px 10px;margin:0 0 9px;font-size:13px;font-weight:650;
+  padding:9px 10px;margin:0 0 9px;font-size:12px;font-weight:700;
   color:var(--ink-soft);white-space:nowrap;overflow-x:auto;scrollbar-width:none;
 }
 .visible-summary::-webkit-scrollbar{display:none;}
@@ -503,7 +503,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-1108</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-2010</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -586,7 +586,7 @@ input,select,textarea{font-family:inherit;}
         <input type="number" id="fltMaxAmt" placeholder="Max ₹" oninput="renderTransactions()">
       </div>
     </div>
-    <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0 · Difference: ₹0</div>
+    <div class="visible-summary" id="txVisibleSummary">Count: 0 · Credit: ₹0 · Debit: ₹0 · ₹0</div>
     <div id="txSelectControls" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:-3px 0 9px;">
       <button type="button" class="link-btn" id="txSelectToggle" onclick="toggleTxSelectMode()">☑ Select</button>
       <button type="button" class="icon-btn" id="txSelectAll" onclick="selectAllVisibleTx()" style="display:none;">Select all visible</button>
@@ -2055,7 +2055,7 @@ function renderTransactions(){
     `Count: <span class="mono">${list.length}</span> · ` +
     `<span class="credit">Credit: <span class="mono">${inr(visibleCredit)}</span></span> · ` +
     `<span class="debit">Debit: <span class="mono">${inr(visibleDebit)}</span></span> · ` +
-    `<span class="${visibleDifferenceClass}">Difference: <span class="mono">${visibleDifferenceText}</span></span>`;
+    `<span class="${visibleDifferenceClass}"><span class="mono">${visibleDifferenceText}</span></span>`;
 
   // Single-day ledger is a chronological diary: earliest transaction first.
   // Daily serial numbers are calculated at render time, never stored.
@@ -2651,7 +2651,7 @@ function updateUnitHint(){
   const hint = document.getElementById('unitHint');
   hint.textContent = '';
   hint.style.display = 'none';
-  if (itemOpen && itemName && Number.isFinite(amount) && amount>0 && Number.isFinite(qty) && qty>0) {
+  if (itemOpen && Number.isFinite(amount) && amount>0 && Number.isFinite(qty) && qty>0) {
     hint.textContent = `≈ ${inr(amount/qty)}${unit ? '/'+unit : ' per unit'}`;
     hint.style.display = 'block';
   }
