@@ -504,7 +504,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261002-2244</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261002-2329</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -3689,9 +3689,29 @@ function populateShoppingSubcats(selected=''){
   el.innerHTML='<option value="">Item / sub-category</option>'+subs.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
   if(selected && subs.includes(selected))el.value=selected;
 }
+function inferShoppingCategory(itemName){
+  const name=normalizeItemName(itemName);
+  if(!name)return null;
+  const findCat=(terms)=>state.categories.find(c=>terms.some(t=>normalizeItemName(c.name).includes(t)));
+  const findSub=(cat,terms)=>((cat?.subs)||[]).find(s=>terms.some(t=>normalizeItemName(s).includes(t)))||'';
+  let cat=null, sub='';
+  if(/\b(milk|curd|yogurt|paneer|cheese|butter|ghee|cream)\b/.test(name)){
+    cat=findCat(['dairy']);
+    if(!cat){cat=findCat(['food','grocery']);sub=findSub(cat,['dairy','grocer']);}
+  }else if(/\b(egg|eggs|chicken|mutton|fish|prawn|prawns|meat)\b/.test(name)){
+    cat=findCat(['non veg','non-veg','meat']);
+    if(!cat){cat=findCat(['food','grocery']);sub=findSub(cat,['non veg','non-veg','grocer']);}
+  }else if(/\b(batter|idli|dosa|appam|puttu|upma|poha)\b/.test(name)){
+    cat=findCat(['breakfast','tiffin']);
+    if(!cat){cat=findCat(['food','grocery']);sub=findSub(cat,['breakfast','tiffin','grocer']);}
+  }else if(/\b(rice|dal|dhal|onion|tomato|potato|vegetable|vegetables|fruit|fruits|flour|atta|maavu|oil|salt|sugar|spice|spices)\b/.test(name)){
+    cat=findCat(['grocery','food']);sub=findSub(cat,['grocer']);
+  }
+  return cat?{categoryId:cat.id,subcategory:sub}:null;
+}
 function refreshShoppingCategorySuggestion(){
   const item=document.getElementById('shopItem')?.value.trim()||'';
-  const p=getItemCategoryProfile(item);
+  const p=getItemCategoryProfile(item)||inferShoppingCategory(item);
   if(p){populateShoppingCategoryOptions(p.categoryId);populateShoppingSubcats(p.subcategory);}
 }
 function addShoppingItem(){
@@ -3708,7 +3728,7 @@ function addShoppingItem(){
   const rateUnit=document.getElementById('shopRateUnit').value||unit||'';
   let estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
   if(!estimate && qty && rate){calculateShoppingEstimate();estimate=parseFloat(document.getElementById('shopEstimate').value)||0;}
-  const knownCategory=getItemCategoryProfile(item);
+  const knownCategory=getItemCategoryProfile(item)||inferShoppingCategory(item);
   const chosenCategory=document.getElementById('shopCategory')?.value||knownCategory?.categoryId||'';
   const chosenSubcategory=document.getElementById('shopSubcategory')?.value||knownCategory?.subcategory||'';
   const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,categoryId:chosenCategory,subcategory:chosenSubcategory,createdAt:new Date().toISOString()};
@@ -3797,10 +3817,12 @@ function shoppingItemCategoryProfile(item){
   return p ? {categoryId:p.categoryId,subcategory:p.subcategory||''} : null;
 }
 function commonShoppingCategory(items){
-  const profiles=items.map(shoppingItemCategoryProfile);
+  const profiles=items.map(i=>shoppingItemCategoryProfile(i)||inferShoppingCategory(i.item));
   if(!profiles.length || profiles.some(p=>!p)) return null;
   const first=profiles[0];
-  return profiles.every(p=>p.categoryId===first.categoryId && p.subcategory===first.subcategory) ? first : null;
+  if(!profiles.every(p=>p.categoryId===first.categoryId)) return null;
+  const sameSub=profiles.every(p=>p.subcategory===first.subcategory);
+  return {categoryId:first.categoryId,subcategory:sameSub?first.subcategory:''};
 }
 function postShoppingTripToKhata(){
   ensureShoppingTripState();
@@ -3858,7 +3880,7 @@ function openNextShoppingTripTransaction(){
     cat.value='';cat.dataset.previous='';populateSubcatOptions('');
     const hint=document.getElementById('itemCategoryHint');
     if(hint){
-      hint.textContent='Category required before posting this shopping entry. Items are new or use different categories.';
+      hint.textContent='Some items do not yet have a known category. Choose once; Khata will remember it for future purchases.';
       hint.classList.add('show');
     }
   }
