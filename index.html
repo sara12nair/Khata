@@ -101,7 +101,7 @@ input,select,textarea{font-family:inherit;}
   content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--brass);
 }
 .balance-label{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;}
-.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;margin-top:4px;}
+.balance-amt{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;margin-top:4px;}
 .balance-sub{display:flex;gap:18px;margin-top:12px;font-size:13px;}
 .balance-sub span.credit{color:var(--credit);font-weight:600;}
 .balance-sub span.debit{color:var(--debit);font-weight:600;}
@@ -127,6 +127,7 @@ input,select,textarea{font-family:inherit;}
   border-left:3px solid var(--paper-line);
 }
 .tx-row.credit{border-left-color:var(--credit);}
+.tx-row.just-added{outline:2px solid var(--brass);box-shadow:0 0 0 4px var(--brass-soft),var(--shadow);}
 .tx-row.debit{border-left-color:var(--debit);}
 .tx-icon{
   width:38px;height:38px;border-radius:50%;background:var(--brass-soft);
@@ -279,7 +280,7 @@ input,select,textarea{font-family:inherit;}
 .search-scope-hint.show{display:block;}
 .visible-summary{
   background:var(--white);border:1px solid var(--paper-line);border-radius:10px;
-  padding:9px 10px;margin:0 0 9px;font-size:12px;font-weight:700;
+  padding:9px 10px;margin:0 0 9px;font-size:14px;font-weight:700;
   color:var(--ink-soft);white-space:nowrap;overflow-x:auto;scrollbar-width:none;
 }
 .visible-summary::-webkit-scrollbar{display:none;}
@@ -503,7 +504,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261001-2010</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261002-2244</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -641,12 +642,16 @@ input,select,textarea{font-family:inherit;}
       </div>
       <input id="shopStore" type="hidden">
       <div class="shop-grid">
-        <input class="shop-item" id="shopItem" placeholder="Item e.g. Onion" oninput="refreshShoppingHistoryHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();addShoppingItem()}">
+        <input class="shop-item" id="shopItem" placeholder="Item e.g. Onion" oninput="refreshShoppingHistoryHint();refreshShoppingCategorySuggestion()" onkeydown="if(event.key==='Enter'){event.preventDefault();addShoppingItem()}">
         <input id="shopQty" type="number" min="0" step="0.01" inputmode="decimal" value="1" placeholder="Qty" oninput="document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()">
         <select id="shopUnit" onchange="syncShoppingRateUnit();document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()"><option value="">Unit</option><option>pcs</option><option>plate</option><option>serving</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>box</option></select>
         <input id="shopRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Rate ₹" oninput="calculateShoppingEstimate()">
         <select id="shopRateUnit" onchange="document.getElementById('shopEstimate').dataset.manual==='1'?recalculateShoppingRateFromAmount():calculateShoppingEstimate()"><option value="">Per</option><option value="kg">per kg</option><option value="g">per g</option><option value="L">per L</option><option value="ml">per ml</option><option value="pcs">per pc</option><option value="plate">per plate</option><option value="serving">per serving</option><option value="pack">per pack</option><option value="box">per box</option></select>
         <input id="shopEstimate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount ₹" oninput="this.dataset.manual=this.value!==''?'1':''; if(this.value==='') calculateShoppingEstimate(); else recalculateShoppingRateFromAmount()">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <select id="shopCategory" onchange="populateShoppingSubcats()"><option value="">Category</option></select>
+        <select id="shopSubcategory"><option value="">Item / sub-category</option></select>
       </div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
       <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--ink-soft)"></div>
@@ -2097,7 +2102,7 @@ function renderTransactions(){
     if (t.itemName) itemBits.push(escapeHtml(t.itemName) + (t.qty ? ` (${t.qty}${t.unit?' '+t.unit:''})` : ''));
     if (t.shop) itemBits.push(escapeHtml(t.shop));
     const itemLine = itemBits.length ? `<div class="tx-meta">🛍️ ${itemBits.join(' · ')}</div>` : '';
-    return `<div class="tx-row ${t.type}" onclick="${txSelectMode?`toggleTxSelection('${t.id}',!txSelectedIds.has('${t.id}'));renderTransactions()`:(t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`)}">
+    return `<div class="tx-row ${t.type}" data-tx-id="${t.id}" onclick="${txSelectMode?`toggleTxSelection('${t.id}',!txSelectedIds.has('${t.id}'));renderTransactions()`:(t.isTransfer?`openTransferModal('${t.transferId}')`:`openTxModal('${t.id}')`)}">
       ${txSelectMode?`<input class="tx-select-check" type="checkbox" ${txSelectedIds.has(t.id)?'checked':''} aria-label="Select transaction" onclick="event.stopPropagation()" onchange="toggleTxSelection('${t.id}',this.checked)" style="width:20px;height:20px;flex:0 0 auto;accent-color:var(--ink);">`:''}
       <div class="tx-icon" title="${isSingleDayView?'Daily transaction '+(idx+1):(t.type==='credit'?'Credit':'Debit')}">${icon}</div>
       <div class="tx-mid">
@@ -2717,6 +2722,9 @@ function applyItemCategorySuggestion(){
 document.getElementById('txAmount') && document.getElementById('txAmount').addEventListener('input', updateUnitHint);
 
 function cloneCurrentTx(){
+  // A clone is a brand-new transaction, never a historical edit.
+  setHistoricalTxLock(false);
+  const unlockBtn=document.getElementById('txUnlockBtn'); if(unlockBtn) unlockBtn.style.display='inline-block';
   document.getElementById('txId').value = '';
   document.getElementById('txDeleteBtn').style.display = 'none';
   document.getElementById('txCloneBtn').style.display = 'none';
@@ -2834,6 +2842,9 @@ function saveTx(){
     }
     pendingShoppingId = '';
   }
+
+  // Remember newly posted Shopping ledger rows so we can focus them after the trip.
+  if (shoppingTripPosting && !existingId && !shoppingPostedTxIds.includes(id)) shoppingPostedTxIds.push(id);
 
   // If multiple purchased Shopping items were combined, link every item to this one Khata transaction.
   if (pendingShoppingBatchIds.length) {
@@ -3585,6 +3596,7 @@ function clearCurrentShoppingBill(){
 /* ===== Shopping Trip: multiple shops, multiple items, one-click posting ===== */
 let activeShoppingShopId='';
 let shoppingTripPosting=null;
+let shoppingPostedTxIds=[];
 
 function ensureShoppingTripState(){
   if(!state.shoppingTrip || typeof state.shoppingTrip!=='object') state.shoppingTrip={shops:[]};
@@ -3633,6 +3645,7 @@ function removeShoppingTripShop(id){
   localSave(); renderShoppingList();
 }
 function openShoppingTripShop(id){
+  populateShoppingCategoryOptions('');
   ensureShoppingTripState();
   const s=state.shoppingTrip.shops.find(x=>x.id===id); if(!s)return;
   activeShoppingShopId=id;
@@ -3661,6 +3674,26 @@ function updateTripShop(id,field,value){
   const s=state.shoppingTrip.shops.find(x=>x.id===id);if(!s)return;
   s[field]=value; localSave(); renderShoppingList();
 }
+function populateShoppingCategoryOptions(selected=''){
+  const el=document.getElementById('shopCategory'); if(!el)return;
+  const cats=state.categories.slice().sort((a,b)=>alphaCompare(a.name,b.name));
+  el.innerHTML='<option value="">Category</option>'+cats.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  if(selected && cats.some(c=>c.id===selected)) el.value=selected;
+  populateShoppingSubcats();
+}
+function populateShoppingSubcats(selected=''){
+  const catId=document.getElementById('shopCategory')?.value||'';
+  const el=document.getElementById('shopSubcategory'); if(!el)return;
+  const cat=state.categories.find(c=>c.id===catId);
+  const subs=(cat?.subs||[]).slice().sort(alphaCompare);
+  el.innerHTML='<option value="">Item / sub-category</option>'+subs.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
+  if(selected && subs.includes(selected))el.value=selected;
+}
+function refreshShoppingCategorySuggestion(){
+  const item=document.getElementById('shopItem')?.value.trim()||'';
+  const p=getItemCategoryProfile(item);
+  if(p){populateShoppingCategoryOptions(p.categoryId);populateShoppingSubcats(p.subcategory);}
+}
 function addShoppingItem(){
   ensureShoppingTripState();
   if(!activeShoppingShopId){alert('Choose or add a shop first.');return;}
@@ -3676,7 +3709,9 @@ function addShoppingItem(){
   let estimate=parseFloat(document.getElementById('shopEstimate').value)||0;
   if(!estimate && qty && rate){calculateShoppingEstimate();estimate=parseFloat(document.getElementById('shopEstimate').value)||0;}
   const knownCategory=getItemCategoryProfile(item);
-  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,categoryId:knownCategory?.categoryId||'',subcategory:knownCategory?.subcategory||'',createdAt:new Date().toISOString()};
+  const chosenCategory=document.getElementById('shopCategory')?.value||knownCategory?.categoryId||'';
+  const chosenSubcategory=document.getElementById('shopSubcategory')?.value||knownCategory?.subcategory||'';
+  const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,categoryId:chosenCategory,subcategory:chosenSubcategory,createdAt:new Date().toISOString()};
   if(editingShoppingId){
     const old=state.shoppingList.find(x=>x.id===editingShoppingId);
     if(old)Object.assign(old,data);
@@ -3686,7 +3721,7 @@ function addShoppingItem(){
   localSave();
   ['shopItem','shopRate','shopEstimate','shopNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('shopQty').value='1';
-  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';document.getElementById('shopEstimate').dataset.manual='';
+  document.getElementById('shopUnit').value='';document.getElementById('shopRateUnit').value='';document.getElementById('shopEstimate').dataset.manual='';populateShoppingCategoryOptions('');
   renderShoppingList();openShoppingTripShop(shop.id);
 }
 function editShoppingItem(id){
@@ -3701,6 +3736,7 @@ function editShoppingItem(id){
   document.getElementById('shopEstimate').value=i.estimate||'';
   document.getElementById('shopEstimate').dataset.manual=(!Number(i.rate) && Number(i.estimate))?'1':'';
   document.getElementById('shopNote').value=i.note||'';
+  populateShoppingCategoryOptions(i.categoryId||'');populateShoppingSubcats(i.subcategory||'');
   const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='Save item';
 }
 function renderShoppingList(){
@@ -3710,7 +3746,7 @@ function renderShoppingList(){
   legacy.forEach(i=>{
     const nm=(i.store||'Shopping').trim()||'Shopping';
     let s=state.shoppingTrip.shops.find(x=>x.name.toLowerCase()===nm.toLowerCase());
-    if(!s){s={id:uid(),name:nm,accountId:i.accountId||'',time:''};state.shoppingTrip.shops.push(s);}
+    if(!s){s={id:uid(),name:nm,accountId:i.accountId||'',time:new Date().toTimeString().slice(0,5)};state.shoppingTrip.shops.push(s);}
     i.tripShopId=s.id;i.store=s.name;
   });
   const unposted=state.shoppingList.filter(i=>!i.txId);
@@ -3729,7 +3765,7 @@ function renderShoppingList(){
       <div class="trip-shop-head"><div class="trip-shop-name">${shoppingEscape(s.name)}</div><b class="mono">${inr(subtotal)}</b></div>
       <div class="trip-shop-meta">${items.length} item${items.length===1?'':'s'}</div>
       <div class="trip-shop-items">${items.length?items.map(i=>`<div class="trip-shop-item"><span>${shoppingEscape(shoppingCalcText(i))}</span><span><button class="icon-btn" onclick="editShoppingItem('${i.id}')">✎</button> <button class="icon-btn" onclick="deleteShoppingItem('${i.id}')">×</button></span></div>`).join(''):'<div class="shop-empty" style="padding:8px">No items yet.</div>'}</div>
-      <div class="trip-shop-controls"><div style="display:flex;gap:5px;align-items:center;flex:1"><input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${shoppingEscape(s.time||'')}" oninput="formatTripTimeInput(this)" onchange="saveTripTime('${s.id}',this)" style="min-width:82px;flex:1"><button type="button" class="icon-btn" title="Use current time" onclick="setTripTimeNow('${s.id}',this.previousElementSibling)">Now</button></div><select onchange="updateTripShop('${s.id}','accountId',this.value)">${accOpts}</select></div>
+      <div class="trip-shop-controls"><div style="display:flex;gap:5px;align-items:center;flex:1"><input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${shoppingEscape(s.time||'')}" onfocus="this.select()" onclick="this.select()" oninput="formatTripTimeInput(this)" onchange="saveTripTime('${s.id}',this)" style="min-width:82px;flex:1"><button type="button" class="icon-btn" title="Use current time" onclick="setTripTimeNow('${s.id}',this.previousElementSibling)">Now</button></div><select onchange="updateTripShop('${s.id}','accountId',this.value)">${accOpts}</select></div>
       <div class="trip-shop-actions"><button onclick="openShoppingTripShop('${s.id}')">+ Add / Edit Items</button><button onclick="removeShoppingTripShop('${s.id}')">Remove Shop</button></div>
     </div>`;
   }).join(''):'<div class="shop-empty">Tap “+ Add Shop” to start this shopping trip.</div>';
@@ -3743,6 +3779,11 @@ function clearCurrentShoppingBill(){
   state.shoppingTrip={shops:[]};activeShoppingShopId='';editingShoppingId='';
   localSave();closeShoppingItemEditor();
   document.getElementById('shopBillDate').value=localDateStr();renderShoppingList();
+}
+function shoppingLedgerText(i){
+  const base=shoppingCalcText(i);
+  const note=String(i.note||'').trim();
+  return note ? `${base} — ${note}` : base;
 }
 function roundShoppingRupee(v){
   const n=Number(v)||0;
@@ -3775,9 +3816,10 @@ function postShoppingTripToKhata(){
     const raw=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
     const rounded=roundShoppingRupee(raw);
     const rounding=Math.abs(raw-rounded)>=0.001 ? ` (rounded from ${inr(raw)})` : '';
-    return `${g.shop.name}: ${g.items.map(shoppingCalcText).join(' · ')} = ${inr(rounded)}${rounding}`;
+    return `${g.shop.name}: ${g.items.map(shoppingLedgerText).join(' · ')} = ${inr(rounded)}${rounding}`;
   }).join('\n\n');
   if(!confirm(`Post shopping trip dated ${formatDate(date)}?\n\n${preview}\n\nTrip total: ${inr(total)}\n\nContinue to Khata entries?`))return;
+  shoppingPostedTxIds=[];
   shoppingTripPosting={groups,index:0,date};
   openNextShoppingTripTransaction();
 }
@@ -3785,7 +3827,16 @@ function openNextShoppingTripTransaction(){
   if(!shoppingTripPosting)return;
   if(shoppingTripPosting.index>=shoppingTripPosting.groups.length){
     shoppingTripPosting=null;state.shoppingTrip={shops:[]};activeShoppingShopId='';localSave();closeShoppingItemEditor();renderShoppingList();
-    alert('Shopping trip posted to Khata.');
+    switchTab('transactions');
+    setLedgerPeriod('today');
+    renderTransactions();
+    const focusId=shoppingPostedTxIds[0];
+    requestAnimationFrame(()=>{
+      const row=focusId?document.querySelector(`.tx-row[data-tx-id="${focusId}"]`):null;
+      if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('just-added');setTimeout(()=>row.classList.remove('just-added'),4500);}
+    });
+    shoppingPostedTxIds=[];
+    alert('Shopping trip posted to Khata. The new Ledger entry is highlighted.');
     return;
   }
   const g=shoppingTripPosting.groups[shoppingTripPosting.index];
@@ -3796,7 +3847,7 @@ function openNextShoppingTripTransaction(){
   document.getElementById('txAccount').value=g.shop.accountId;
   const rawShopTotal=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
   document.getElementById('txAmount').value=roundShoppingRupee(rawShopTotal);
-  document.getElementById('txNote').value=g.items.map(shoppingCalcText).join(' · ');
+  document.getElementById('txNote').value=g.items.map(shoppingLedgerText).join(' · ');
   document.getElementById('txShop').value=g.shop.name;
   document.getElementById('txItemName').value='';document.getElementById('txQty').value='';document.getElementById('txUnit').value='';
   const cat=document.getElementById('txCategory');
