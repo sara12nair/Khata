@@ -688,6 +688,7 @@ input,select,textarea{font-family:inherit;}
   <!-- CATEGORIES TAB -->
   <div class="section" id="tab-categories">
     <div class="section-head"><h2>Categories</h2><button class="link-btn" onclick="openCategoryModal()">+ Add</button></div>
+    <div id="mappingReview" class="insight-card" style="padding:10px 12px;margin-bottom:12px;"></div>
     <div id="categoriesList"></div>
   </div>
 
@@ -2145,7 +2146,40 @@ function renderAccounts(){
   }).join('');
 }
 
+function collectMappingConflicts(){
+  const issues=[];
+  const subMap=new Map();
+  (state.categories||[]).forEach(c=>(c.subs||[]).forEach(sub=>{
+    const key=normalizeItemName(sub); if(!key)return;
+    const a=subMap.get(key)||[]; a.push({categoryId:c.id,categoryName:c.name,subcategory:sub}); subMap.set(key,a);
+  }));
+  subMap.forEach((a,key)=>{if(a.length>1)issues.push({type:'subcategory',name:a[0].subcategory,paths:a.map(x=>`${x.categoryName} → ${x.subcategory}`)});});
+  const itemNames=new Map();
+  (state.transactions||[]).forEach(t=>{const k=normalizeItemName(t.itemName);if(k&&!itemNames.has(k))itemNames.set(k,t.itemName);});
+  itemNames.forEach((label,key)=>{
+    const m=getItemCategoryMappings(label);
+    if(m.length>1)issues.push({type:'item',name:label,paths:m.map(x=>itemCategoryPath(x.categoryId,x.subcategory))});
+  });
+  return issues;
+}
+function renderMappingReview(){
+  const host=document.getElementById('mappingReview');if(!host)return;
+  const issues=collectMappingConflicts();
+  const itemMap=new Map();
+  (state.transactions||[]).forEach(t=>{
+    const k=normalizeItemName(t.itemName);if(!k)return;
+    const m=getItemCategoryMappings(t.itemName);
+    if(m.length===1&&!itemMap.has(k))itemMap.set(k,{name:t.itemName,path:itemCategoryPath(m[0].categoryId,m[0].subcategory)});
+  });
+  const rows=[...itemMap.values()].sort((a,b)=>alphaCompare(a.name,b.name));
+  host.innerHTML=`<details ${issues.length?'open':''}>
+    <summary style="cursor:pointer;font-weight:700;">Item mapping review · ${rows.length} learned · ${issues.length?`⚠ ${issues.length} conflict${issues.length===1?'':'s'}`:'✓ no conflicts'}</summary>
+    ${issues.length?`<div style="margin-top:8px;padding:8px;border:1px solid var(--paper-line);border-radius:10px;"><b>Needs attention</b>${issues.map(x=>`<div style="margin-top:6px;">⚠ ${escapeHtml(x.name)}<br><small>${x.paths.map(escapeHtml).join(' / ')}</small></div>`).join('')}</div>`:''}
+    <div style="max-height:220px;overflow:auto;margin-top:8px;">${rows.length?rows.map(x=>`<div style="padding:5px 0;border-bottom:1px solid var(--paper-line);"><b>${escapeHtml(x.name)}</b><br><small>${escapeHtml(x.path)}</small></div>`).join(''):'<small>Mappings will appear after itemised Ledger entries are saved.</small>'}</div>
+  </details>`;
+}
 function renderCategories(){
+  renderMappingReview();
   const wrap = document.getElementById('categoriesList');
   if (!state.categories.length) { wrap.innerHTML = '<div class="empty-note">No categories yet.</div>'; return; }
   wrap.innerHTML = state.categories.slice().sort((a,b)=>alphaCompare(a.name,b.name)).map(c=>`
@@ -2664,27 +2698,43 @@ function updateUnitHint(){
 function normalizeItemName(value){
   return String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
 }
-function getItemCategoryProfile(itemName, excludeTxId=''){
-  const key = normalizeItemName(itemName);
-  if (!key) return null;
-  const groups = new Map();
-  state.transactions.forEach(t=>{
-    if (t.id===excludeTxId || normalizeItemName(t.itemName)!==key) return;
-    const cat = state.categories.find(c=>c.id===t.categoryId);
-    if (!cat) return;
-    const subcategory = t.subcategory || '';
-    const pairKey = `${t.categoryId}\u0000${subcategory}`;
-    const stamp = `${t.date||''}T${t.time||''}`;
-    const group = groups.get(pairKey) || {categoryId:t.categoryId,subcategory,count:0,last:''};
-    group.count += 1;
-    if (stamp > group.last) group.last = stamp;
-    groups.set(pairKey, group);
+function getItemCategoryMappings(itemName, excludeTxId=''){
+  const key=normalizeItemName(itemName);
+  if(!key)return [];
+  const groups=new Map();
+  (state.transactions||[]).forEach(t=>{
+    if(t.id===excludeTxId || normalizeItemName(t.itemName)!==key)return;
+    const cat=state.categories.find(c=>c.id===t.categoryId);
+    if(!cat)return;
+    const subcategory=String(t.subcategory||'').trim();
+    const pairKey=`${t.categoryId}\u0000${normalizeItemName(subcategory)}`;
+    const stamp=`${t.date||''}T${t.time||''}`;
+    const g=groups.get(pairKey)||{categoryId:t.categoryId,subcategory,count:0,last:''};
+    g.count++;
+    if(stamp>g.last)g.last=stamp;
+    groups.set(pairKey,g);
   });
-  const ranked = [...groups.values()].sort((a,b)=>b.count-a.count || b.last.localeCompare(a.last));
-  if (!ranked.length) return null;
-  const profile = ranked[0];
-  const cat = state.categories.find(c=>c.id===profile.categoryId);
-  return {...profile, categoryName:cat ? cat.name : 'Uncategorised'};
+  return [...groups.values()].sort((a,b)=>b.count-a.count || b.last.localeCompare(a.last));
+}
+function getItemCategoryProfile(itemName, excludeTxId=''){
+  const mappings=getItemCategoryMappings(itemName,excludeTxId);
+  if(mappings.length!==1)return null; // never silently choose among conflicts
+  const profile=mappings[0],cat=state.categories.find(c=>c.id===profile.categoryId);
+  return {...profile,categoryName:cat?cat.name:'Uncategorised'};
+}
+function getItemCategoryConflict(itemName, excludeTxId=''){
+  const mappings=getItemCategoryMappings(itemName,excludeTxId);
+  return mappings.length>1?mappings:null;
+}
+function subcategoryOwners(subcategory, excludeCategoryId=''){
+  const key=normalizeItemName(subcategory);
+  if(!key)return [];
+  return (state.categories||[]).filter(c=>c.id!==excludeCategoryId && (c.subs||[]).some(s=>normalizeItemName(s)===key));
+}
+function mappingConflictText(itemName, mappings){
+  return `“${itemName}” has more than one saved mapping:\n\n`+
+    mappings.map(m=>`• ${itemCategoryPath(m.categoryId,m.subcategory)} (${m.count} transaction${m.count===1?'':'s'})`).join('\n')+
+    '\n\nPlease correct the historical mapping before adding another transaction for this item.';
 }
 function itemCategoryPath(categoryId, subcategory){
   const cat = state.categories.find(c=>c.id===categoryId);
@@ -2695,6 +2745,12 @@ function refreshItemCategoryHint(autoApply){
   if (!hint) return;
   const itemName = document.getElementById('txItemName').value;
   const editingId = document.getElementById('txId').value;
+  const conflict=getItemCategoryConflict(itemName,editingId);
+  if(conflict){
+    hint.textContent=`⚠ Mapping conflict: ${conflict.map(m=>itemCategoryPath(m.categoryId,m.subcategory)).join(' / ')}.`;
+    hint.classList.add('show');
+    return;
+  }
   const profile = getItemCategoryProfile(itemName, editingId);
   if (!profile) {
     hint.classList.remove('show');
@@ -2769,6 +2825,18 @@ function populateSubcatOptions(selected){
   subSel.dataset.previous = subSel.value;
 }
 
+function nearDuplicateItemNames(itemName, excludeTxId=''){
+  const raw=normalizeItemName(itemName); if(!raw || raw.length<4)return [];
+  const compact=x=>normalizeItemName(x).replace(/[^a-z0-9]+/g,'');
+  const token=x=>normalizeItemName(x).split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
+  const a=compact(itemName),ta=token(itemName),seen=new Map();
+  (state.transactions||[]).forEach(t=>{
+    if(t.id===excludeTxId || !t.itemName)return;
+    const b=compact(t.itemName),tb=token(t.itemName);
+    if(normalizeItemName(t.itemName)!==raw && (a===b || (ta && ta===tb)))seen.set(normalizeItemName(t.itemName),t.itemName);
+  });
+  return [...seen.values()].slice(0,3);
+}
 function saveTx(){
   if(txHistoricalLocked){ alert('This historical transaction is protected. Tap “Edit historical transaction” before making changes.'); return; }
   updateUnitHint();
@@ -2787,6 +2855,17 @@ function saveTx(){
   const qtyVal = parseFloat(document.getElementById('txQty').value);
   const itemName = document.getElementById('txItemName').value.trim();
   const selectedSubcategory = document.getElementById('txSubcategory').value;
+  const itemConflict=getItemCategoryConflict(itemName,existingId);
+  if(itemConflict){alert(mappingConflictText(itemName,itemConflict));return;}
+  if(!existingId && itemName){
+    const near=nearDuplicateItemNames(itemName);
+    if(near.length && !confirm(`Similar item name already exists: ${near.join(', ')}.\n\nKeep “${itemName}” as a separate item?`))return;
+  }
+  const owners=subcategoryOwners(selectedSubcategory,selectedCategory);
+  if(selectedSubcategory && owners.length){
+    alert(`“${selectedSubcategory}” already belongs to ${owners.map(c=>c.name).join(', ')}.\n\nOne Item/Sub-category can belong to only one Category.`);
+    return;
+  }
   const itemProfile = getItemCategoryProfile(itemName, existingId);
   if (itemProfile && (selectedCategory!==itemProfile.categoryId || selectedSubcategory!==itemProfile.subcategory)) {
     const usualPath = itemCategoryPath(itemProfile.categoryId,itemProfile.subcategory);
@@ -3079,8 +3158,10 @@ function addSubcat(catId){
   const val = input.value.trim();
   if (!val) return;
   const cat = state.categories.find(c=>c.id===catId);
+  const owners=subcategoryOwners(val,catId);
+  if(owners.length){alert(`“${val}” already exists under ${owners.map(c=>c.name).join(', ')}.\n\nA sub-category can belong to only one category.`);return;}
   cat.subs = cat.subs || [];
-  if (!cat.subs.includes(val)) cat.subs.push(val);
+  if (!cat.subs.some(s=>normalizeItemName(s)===normalizeItemName(val))) cat.subs.push(val);
   cloudSaveMeta();
   renderAll();
 }
@@ -3089,7 +3170,9 @@ function editSubcat(catId, sub){
   const next=prompt(`Rename / merge sub-category “${sub}” to:`,sub);
   if(next===null)return;
   const name=next.trim(); if(!name || name===sub)return;
-  const existing=(cat.subs||[]).find(s=>s!==sub && s.toLowerCase()===name.toLowerCase());
+  const owners=subcategoryOwners(name,catId);
+  if(owners.length){alert(`“${name}” already belongs to ${owners.map(c=>c.name).join(', ')}.\n\nMove/clean that mapping first; Khata will not create a duplicate across categories.`);return;}
+  const existing=(cat.subs||[]).find(s=>s!==sub && normalizeItemName(s)===normalizeItemName(name));
   const finalName=existing||name;
   const used=state.transactions.filter(t=>t.categoryId===catId && t.subcategory===sub);
   const msg=existing
@@ -3810,19 +3893,44 @@ function roundShoppingRupee(v){
   return Math.floor(n+0.5);
 }
 function shoppingItemCategoryProfile(item){
+  // Exact item history always wins. Never collapse variants such as White Eggs / Brown Eggs
+  // or Milk - Orange / Milk - Violet into one generic sub-category.
   if(item.categoryId && state.categories.some(c=>c.id===item.categoryId)){
-    return {categoryId:item.categoryId,subcategory:item.subcategory||''};
+    return {categoryId:item.categoryId,subcategory:item.subcategory||item.item||''};
   }
   const p=getItemCategoryProfile(item.item);
-  return p ? {categoryId:p.categoryId,subcategory:p.subcategory||''} : null;
+  if(p) return {categoryId:p.categoryId,subcategory:p.subcategory||item.item||''};
+  const inferred=inferShoppingCategory(item.item);
+  return inferred ? {categoryId:inferred.categoryId,subcategory:item.item||''} : null;
 }
-function commonShoppingCategory(items){
-  const profiles=items.map(i=>shoppingItemCategoryProfile(i)||inferShoppingCategory(i.item));
-  if(!profiles.length || profiles.some(p=>!p)) return null;
-  const first=profiles[0];
-  if(!profiles.every(p=>p.categoryId===first.categoryId)) return null;
-  const sameSub=profiles.every(p=>p.subcategory===first.subcategory);
-  return {categoryId:first.categoryId,subcategory:sameSub?first.subcategory:''};
+function ensureExactShoppingSubcategory(item,profile){
+  if(!profile || !profile.categoryId) return profile;
+  const exact=String(profile.subcategory||item.item||'').trim();
+  if(!exact) return profile;
+  const cat=state.categories.find(c=>c.id===profile.categoryId);
+  const owners=subcategoryOwners(exact,profile.categoryId);
+  if(owners.length)return {...profile,conflict:`“${exact}” already belongs to ${owners.map(c=>c.name).join(', ')}`};
+  if(cat){
+    cat.subs=Array.isArray(cat.subs)?cat.subs:[];
+    const existing=cat.subs.find(s=>normalizeItemName(s)===normalizeItemName(exact));
+    if(existing) profile.subcategory=existing;
+    else {cat.subs.push(exact);profile.subcategory=exact;cloudSaveMeta();}
+  }
+  return profile;
+}
+function shoppingPostingEntries(groups){
+  const entries=[];
+  groups.forEach(g=>{
+    const rawTotal=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
+    const roundedTotal=roundShoppingRupee(rawTotal);
+    const adjustment=roundedTotal-rawTotal; // final Shopping total rounding only
+    g.items.forEach((item,idx)=>{
+      let amount=Number(item.estimate)||Number(item.actual)||0;
+      if(idx===g.items.length-1) amount+=adjustment;
+      entries.push({shop:g.shop,item,amount:Math.round(amount*100)/100});
+    });
+  });
+  return entries;
 }
 function postShoppingTripToKhata(){
   ensureShoppingTripState();
@@ -3840,52 +3948,49 @@ function postShoppingTripToKhata(){
     const rounding=Math.abs(raw-rounded)>=0.001 ? ` (rounded from ${inr(raw)})` : '';
     return `${g.shop.name}: ${g.items.map(shoppingLedgerText).join(' · ')} = ${inr(rounded)}${rounding}`;
   }).join('\n\n');
-  if(!confirm(`Post shopping trip dated ${formatDate(date)}?\n\n${preview}\n\nTrip total: ${inr(total)}\n\nContinue to Khata entries?`))return;
+  if(!confirm(`Post shopping trip dated ${formatDate(date)}?\n\n${preview}\n\nTrip total: ${inr(total)}\n\nEach item will be posted separately with its own Category → Item/Sub-category. Continue?`))return;
   shoppingPostedTxIds=[];
-  shoppingTripPosting={groups,index:0,date};
+  shoppingTripPosting={entries:shoppingPostingEntries(groups),index:0,date};
   openNextShoppingTripTransaction();
 }
 function openNextShoppingTripTransaction(){
   if(!shoppingTripPosting)return;
-  if(shoppingTripPosting.index>=shoppingTripPosting.groups.length){
+  if(shoppingTripPosting.index>=shoppingTripPosting.entries.length){
     shoppingTripPosting=null;state.shoppingTrip={shops:[]};activeShoppingShopId='';localSave();closeShoppingItemEditor();renderShoppingList();
-    switchTab('transactions');
-    setLedgerPeriod('today');
-    renderTransactions();
+    switchTab('transactions');setLedgerPeriod('today');renderTransactions();
     const focusId=shoppingPostedTxIds[0];
-    requestAnimationFrame(()=>{
-      const row=focusId?document.querySelector(`.tx-row[data-tx-id="${focusId}"]`):null;
-      if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('just-added');setTimeout(()=>row.classList.remove('just-added'),4500);}
-    });
+    requestAnimationFrame(()=>{const row=focusId?document.querySelector(`.tx-row[data-tx-id="${focusId}"]`):null;if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('just-added');setTimeout(()=>row.classList.remove('just-added'),4500);}});
     shoppingPostedTxIds=[];
-    alert('Shopping trip posted to Khata. The new Ledger entry is highlighted.');
+    alert('Shopping trip posted item-by-item to Khata. Each item keeps its own Category and Item/Sub-category.');
     return;
   }
-  const g=shoppingTripPosting.groups[shoppingTripPosting.index];
-  pendingShoppingId='';pendingShoppingBatchIds=g.items.map(i=>i.id);
+  const e=shoppingTripPosting.entries[shoppingTripPosting.index], i=e.item, shop=e.shop;
+  const conflict=getItemCategoryConflict(i.item);
+  if(conflict){shoppingTripPosting=null;alert(mappingConflictText(i.item,conflict));return;}
+  pendingShoppingBatchIds=[];pendingShoppingId=i.id;
   openTxModal();setTxType('debit');
   document.getElementById('txDate').value=shoppingTripPosting.date;
-  if(g.shop.time)document.getElementById('txTime').value=g.shop.time;
-  document.getElementById('txAccount').value=g.shop.accountId;
-  const rawShopTotal=g.items.reduce((s,i)=>s+(Number(i.estimate)||Number(i.actual)||0),0);
-  document.getElementById('txAmount').value=roundShoppingRupee(rawShopTotal);
-  document.getElementById('txNote').value=g.items.map(shoppingLedgerText).join(' · ');
-  document.getElementById('txShop').value=g.shop.name;
-  document.getElementById('txItemName').value='';document.getElementById('txQty').value='';document.getElementById('txUnit').value='';
+  if(shop.time)document.getElementById('txTime').value=shop.time;
+  document.getElementById('txAccount').value=shop.accountId;
+  document.getElementById('txAmount').value=e.amount;
+  document.getElementById('txNote').value=i.note||'';
+  document.getElementById('txShop').value=shop.name;
+  document.getElementById('txItemName').value=i.item||'';
+  document.getElementById('txQty').value=i.qty||'';
+  document.getElementById('txUnit').value=i.unit||'';
+  const profile=ensureExactShoppingSubcategory(i,shoppingItemCategoryProfile(i));
+  if(profile?.conflict){shoppingTripPosting=null;closeModal('txOverlay');alert(profile.conflict+'\n\nOne Item/Sub-category can belong to only one Category.');return;}
   const cat=document.getElementById('txCategory');
-  const commonCat=commonShoppingCategory(g.items);
-  if(commonCat && [...cat.options].some(o=>o.value===commonCat.categoryId)){
-    cat.value=commonCat.categoryId;cat.dataset.previous=commonCat.categoryId;populateSubcatOptions(commonCat.subcategory);
+  const hint=document.getElementById('itemCategoryHint');
+  if(profile && [...cat.options].some(o=>o.value===profile.categoryId)){
+    cat.value=profile.categoryId;cat.dataset.previous=profile.categoryId;
+    populateSubcatOptions(profile.subcategory);
+    if(hint){hint.textContent=`Posting as ${itemCategoryPath(profile.categoryId,profile.subcategory)}.`;hint.classList.add('show');}
   }else{
     cat.value='';cat.dataset.previous='';populateSubcatOptions('');
-    const hint=document.getElementById('itemCategoryHint');
-    if(hint){
-      hint.textContent='Some items do not yet have a known category. Choose once; Khata will remember it for future purchases.';
-      hint.classList.add('show');
-    }
+    if(hint){hint.textContent=`Category unresolved for “${i.item}”. Choose its category once; the exact item name will be remembered as its Item/Sub-category.`;hint.classList.add('show');}
   }
-  setItemFieldsVisible(true);
-  updateUnitHint();
+  setItemFieldsVisible(true);updateUnitHint();localSave();
 }
 /* Hook only the end of successful saveTx: if a trip is being posted, advance to next shop.
    Existing saveTx remains the source of truth for ledger/account/category validation and cloud queue. */
