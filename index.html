@@ -2729,7 +2729,7 @@ function getItemCategoryConflict(itemName, excludeTxId=''){
 function subcategoryOwners(subcategory, excludeCategoryId=''){
   const key=normalizeItemName(subcategory);
   if(!key)return [];
-  return (state.categories||[]).filter(c=>c.id!==excludeCategoryId && (c.subs||[]).some(s=>normalizeItemName(s)===key));
+  return (state.categories||[]).filter(c=>String(c.id)!==String(excludeCategoryId) && (c.subs||[]).some(s=>normalizeItemName(s)===key));
 }
 function mappingConflictText(itemName, mappings){
   return `“${itemName}” has more than one saved mapping:\n\n`+
@@ -3775,6 +3775,13 @@ function populateShoppingSubcats(selected=''){
 function inferShoppingCategory(itemName){
   const name=normalizeItemName(itemName);
   if(!name)return null;
+  // Reuse the exact saved item owner before guessing from food/item keywords.
+  const owners=subcategoryOwners(itemName);
+  if(owners.length===1){
+    const owner=owners[0];
+    return {categoryId:owner.id,subcategory:owner.subs.find(s=>normalizeItemName(s)===name)};
+  }
+  if(owners.length>1)return null; // leave genuine mapping conflicts for validation
   const findCat=(terms)=>state.categories.find(c=>terms.some(t=>normalizeItemName(c.name).includes(t)));
   const findSub=(cat,terms)=>((cat?.subs)||[]).find(s=>terms.some(t=>normalizeItemName(s).includes(t)))||'';
   let cat=null, sub='';
@@ -3935,6 +3942,11 @@ function shoppingPostingEntries(groups){
 function postShoppingTripToKhata(){
   ensureShoppingTripState();
   if(shoppingTripPosting){alert('This shopping trip is already being posted. Finish or cancel the current Khata entry first.');return;}
+  // Commit the item currently being edited before building the posting snapshot.
+  if(editingShoppingId){
+    addShoppingItem();
+    if(editingShoppingId)return; // keep the editor open if saving could not finish
+  }
   const items=state.shoppingList.filter(i=>!i.txId);
   if(!items.length){alert('Add at least one item first.');return;}
   const groups=state.shoppingTrip.shops.map(s=>({shop:s,items:items.filter(i=>i.tripShopId===s.id)})).filter(g=>g.items.length);
