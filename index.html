@@ -504,7 +504,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261105-1912</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261105-1951</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -2602,12 +2602,22 @@ function unlockHistoricalTx(){
 }
 function historicalChangeSummary(oldTx,newTx){
   const changes=[];
-  const add=(label,a,b)=>{if(String(a??'')!==String(b??''))changes.push(`${label}: ${a||'—'} → ${b||'—'}`);};
+  const add=(label,a,b,display=v=>v)=>{if(String(a??'')!==String(b??''))changes.push(`${label}: ${display(a)||'—'} → ${display(b)||'—'}`);};
+  const categoryName=id=>{
+    if(!id)return '—';
+    const cat=(state.categories||[]).find(c=>String(c.id)===String(id));
+    return cat?cat.name:'Removed category';
+  };
+  const paymentName=id=>{
+    if(!id)return '—';
+    const account=(state.accounts||[]).find(a=>String(a.id)===String(id));
+    return account?accountLabel(account):'Removed account';
+  };
   add('Amount',inr(Number(oldTx.amount)||0),inr(Number(newTx.amount)||0));
   add('Date',oldTx.date,newTx.date);
   add('Time',oldTx.time,newTx.time);
-  add('Account',oldTx.accountId,newTx.accountId);
-  add('Category',oldTx.categoryId,newTx.categoryId);
+  add('Account',oldTx.accountId,newTx.accountId,paymentName);
+  add('Category',oldTx.categoryId,newTx.categoryId,categoryName);
   add('Item / sub-category',oldTx.subcategory,newTx.subcategory);
   add('Note',oldTx.note,newTx.note);
   add('Item',oldTx.itemName,newTx.itemName);
@@ -2730,6 +2740,13 @@ function subcategoryOwners(subcategory, excludeCategoryId=''){
   const key=normalizeItemName(subcategory);
   if(!key)return [];
   return (state.categories||[]).filter(c=>String(c.id)!==String(excludeCategoryId) && (c.subs||[]).some(s=>normalizeItemName(s)===key));
+}
+function subcategoryAssignmentConflicts(subcategory, categoryId){
+  const key=normalizeItemName(subcategory);
+  const selected=(state.categories||[]).find(c=>String(c.id)===String(categoryId));
+  // Existing mappings remain usable while legacy duplicates are reviewed.
+  if(selected && (selected.subs||[]).some(s=>normalizeItemName(s)===key))return [];
+  return subcategoryOwners(subcategory,categoryId);
 }
 function mappingConflictText(itemName, mappings){
   return `“${itemName}” has more than one saved mapping:\n\n`+
@@ -2861,7 +2878,7 @@ function saveTx(){
     const near=nearDuplicateItemNames(itemName);
     if(near.length && !confirm(`Similar item name already exists: ${near.join(', ')}.\n\nKeep “${itemName}” as a separate item?`))return;
   }
-  const owners=subcategoryOwners(selectedSubcategory,selectedCategory);
+  const owners=subcategoryAssignmentConflicts(selectedSubcategory,selectedCategory);
   if(selectedSubcategory && owners.length){
     alert(`“${selectedSubcategory}” already belongs to ${owners.map(c=>c.name).join(', ')}.\n\nOne Item/Sub-category can belong to only one Category.`);
     return;
@@ -3915,7 +3932,7 @@ function ensureExactShoppingSubcategory(item,profile){
   const exact=String(profile.subcategory||item.item||'').trim();
   if(!exact) return profile;
   const cat=state.categories.find(c=>c.id===profile.categoryId);
-  const owners=subcategoryOwners(exact,profile.categoryId);
+  const owners=subcategoryAssignmentConflicts(exact,profile.categoryId);
   if(owners.length)return {...profile,conflict:`“${exact}” already belongs to ${owners.map(c=>c.name).join(', ')}`};
   if(cat){
     cat.subs=Array.isArray(cat.subs)?cat.subs:[];
