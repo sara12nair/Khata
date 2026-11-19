@@ -217,6 +217,14 @@ input,select,textarea{font-family:inherit;}
   font-size:15px;background:var(--white);color:var(--ink);
 }
 .field textarea{resize:vertical;min-height:50px;}
+.category-lookup{margin-bottom:12px;}
+.category-lookup-results{margin-top:8px;max-height:240px;overflow-y:auto;}
+.category-lookup-row{display:block;width:100%;padding:8px 4px;border:0;border-bottom:1px solid var(--paper-line);background:none;color:var(--ink);text-align:left;overflow-wrap:anywhere;}
+.category-lookup-row small{display:block;color:var(--ink-soft);margin-top:2px;}
+button.category-lookup-row:hover,button.category-lookup-row:focus-visible{background:var(--brass-soft);}
+.category-lookup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.category-lookup form{margin-top:10px;}
+.category-lookup .field{margin-bottom:8px;}
 .seg{display:flex;border:1px solid var(--paper-line);border-radius:10px;overflow:hidden;}
 .seg button{flex:1;padding:10px;background:var(--white);border:none;font-size:13px;font-weight:600;color:var(--ink-soft);}
 .seg button.on.credit{background:var(--credit);color:#fff;}
@@ -376,6 +384,7 @@ input,select,textarea{font-family:inherit;}
   background:var(--brass-soft);color:#5c4a15;font-size:11.5px;line-height:1.4;
 }
 .item-category-hint.show{display:block;}
+.category-lookup[hidden],.category-lookup [hidden]{display:none !important;}
 .help-note{font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:-5px;margin-bottom:12px;}
 .check-row{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);margin:6px 0 12px;}
 .check-row input{width:18px;height:18px;}
@@ -504,7 +513,7 @@ input,select,textarea{font-family:inherit;}
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261105-1951</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261119-1242</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -688,6 +697,7 @@ input,select,textarea{font-family:inherit;}
   <!-- CATEGORIES TAB -->
   <div class="section" id="tab-categories">
     <div class="section-head"><h2>Categories</h2><button class="link-btn" onclick="openCategoryModal()">+ Add</button></div>
+    <div id="categoryLookup" class="category-lookup insight-card" data-category-lookup></div>
     <div id="mappingReview" class="insight-card" style="padding:10px 12px;margin-bottom:12px;"></div>
     <div id="categoriesList"></div>
   </div>
@@ -803,6 +813,7 @@ input,select,textarea{font-family:inherit;}
       <select id="txAccount" onfocus="this.dataset.previous=this.value" onchange="onTxAccountChange()"></select>
     </div>
     <div class="field">
+      <div id="txCategoryLookup" class="category-lookup" data-category-lookup></div>
       <label>Category</label>
       <select id="txCategory" onfocus="this.dataset.previous=this.value" onchange="onTxCategoryChange()"></select>
     </div>
@@ -1074,10 +1085,12 @@ function queueOp(op){
   q.push(op);
   setQueue(q);
 }
+let flushInProgress = false;
 function flushQueue(){
   const q = getQueue();
   updateQueueIndicator(q.length);
-  if (!CLOUD_ENABLED || !currentUser || !navigator.onLine || !q.length) return;
+  if (flushInProgress || !CLOUD_ENABLED || !currentUser || !navigator.onLine || !q.length) return;
+  flushInProgress = true;
   const userRef = db.collection('users').doc(currentUser.uid);
   const jobs = q.map(op => {
     if (op.kind === 'tx-set') return userRef.collection('transactions').doc(op.id).set(op.payload);
@@ -1086,8 +1099,12 @@ function flushQueue(){
     return Promise.resolve();
   });
   Promise.all(jobs).then(() => {
-    setQueue([]);
+    const sent = new Set(q.map(op => JSON.stringify(op)));
+    setQueue(getQueue().filter(op => !sent.has(JSON.stringify(op))));
+    flushInProgress = false;
+    flushQueue();
   }).catch(err => {
+    flushInProgress = false;
     console.warn('Sync queue flush failed — will retry when back online.', err);
   });
 }
@@ -1121,7 +1138,11 @@ function attachCloudListeners(){
   flushQueue();
   const userRef = db.collection('users').doc(currentUser.uid);
   unsubUserDoc = userRef.onSnapshot(doc=>{
-    if (doc.exists) {
+    const pendingMeta = getQueue().find(op => op.kind === 'meta');
+    if (pendingMeta) {
+      state.accounts = pendingMeta.payload.accounts;
+      state.categories = pendingMeta.payload.categories;
+    } else if (doc.exists) {
       const d = doc.data();
       state.accounts = d.accounts || [];
       state.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATEGORIES;
@@ -1132,7 +1153,12 @@ function attachCloudListeners(){
     renderAll();
   });
   unsubTx = userRef.collection('transactions').orderBy('date','desc').onSnapshot(snap=>{
-    state.transactions = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    const transactions = new Map(snap.docs.map(d => [d.id, {id:d.id, ...d.data()}]));
+    for (const op of getQueue()) {
+      if (op.kind === 'tx-set') transactions.set(op.id, op.payload);
+      if (op.kind === 'tx-delete') transactions.delete(op.id);
+    }
+    state.transactions = [...transactions.values()];
     localSave();
     renderAll();
   });
@@ -2146,6 +2172,212 @@ function renderAccounts(){
   }).join('');
 }
 
+let txLookupSelection = null;
+
+function categoryLookupMatches(query, categories, inTransaction){
+  const categoriesById = new Map(categories.map(cat => [cat.id, cat]));
+  const allCategories = new Map(state.categories.map(cat => [cat.id, cat]));
+  const terms = normalizeItemName(query).split(' ');
+  const matches = new Map();
+  function add(label, categoryId, subcategory, historical){
+    const cat = allCategories.get(categoryId);
+    if (inTransaction && !categoriesById.has(categoryId)) return;
+    const path = (cat?.name || 'Uncategorised') + (subcategory ? ' → ' + subcategory : '');
+    const searchable = normalizeItemName(label + ' ' + path);
+    if (!terms.every(term => searchable.includes(term))) return;
+    const key = JSON.stringify([normalizeItemName(label), categoryId, normalizeItemName(subcategory)]);
+    const savedSub = (cat?.subs || []).find(name => normalizeItemName(name) === normalizeItemName(subcategory));
+    const current = !!cat && (!subcategory || !!savedSub);
+    const row = matches.get(key) || {label, path, categoryId, subcategory:savedSub || subcategory, current, count:0};
+    if (historical) row.count++;
+    matches.set(key, row);
+  }
+  for (const cat of categories) {
+    add(cat.name, cat.id, '', false);
+    for (const subcategory of cat.subs || []) add(subcategory, cat.id, subcategory, false);
+  }
+  for (const tx of state.transactions) {
+    if (tx.isTransfer) continue;
+    const label = tx.itemName?.trim() || tx.note?.trim() || tx.subcategory || '';
+    if (label && terms.some(term => normalizeItemName(label).includes(term))) {
+      add(label, tx.categoryId || '', tx.subcategory || '', true);
+    }
+  }
+  return [...matches.values()].sort((a,b) => {
+    const score = row => normalizeItemName(row.label) === normalizeItemName(query) ? 0 : row.count ? 1 : 2;
+    return score(a)-score(b) || alphaCompare(a.label,b.label) || alphaCompare(a.path,b.path);
+  });
+}
+
+function initCategoryLookup(host){
+  const inputId = host.id + 'Search';
+  host.innerHTML = `
+    <div class="field">
+      <label for="${inputId}">Search items, categories or sub-categories</label>
+      <input id="${inputId}" type="search" autocomplete="off" placeholder="e.g. Brown Sugar" aria-controls="${host.id}Results">
+    </div>
+    <div id="${host.id}Results" class="category-lookup-results" hidden></div>
+    <div class="category-lookup-actions" hidden></div>
+    <form hidden>
+      <div class="field">
+        <label for="${host.id}Parent">Category</label>
+        <select id="${host.id}Parent"></select>
+      </div>
+      <div class="field">
+        <label for="${host.id}Name">Name</label>
+        <input id="${host.id}Name" required autocomplete="off">
+      </div>
+      <p class="item-category-hint show" role="status" hidden></p>
+      <div class="category-lookup-actions">
+        <button type="submit" class="icon-btn">Add</button>
+        <button type="button" class="icon-btn" data-cancel>Cancel</button>
+      </div>
+    </form>`;
+  const input = host.querySelector('input[type=search]');
+  const form = host.querySelector('form');
+  input.addEventListener('input', () => {
+    form.hidden = true;
+    renderCategoryLookup(host);
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      host.querySelector('.category-lookup-results button')?.focus();
+    }
+  });
+  form.querySelector('[data-cancel]').addEventListener('click', () => {
+    form.hidden = true;
+    input.focus();
+  });
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    saveCategoryLookupAddition(host);
+  });
+}
+
+function renderCategoryLookup(host){
+  if (!host.firstElementChild) initCategoryLookup(host);
+  const query = host.querySelector('input[type=search]').value.trim();
+  const results = host.querySelector('.category-lookup-results');
+  const actions = host.querySelector('.category-lookup-actions');
+  results.hidden = actions.hidden = !query;
+  results.replaceChildren();
+  actions.replaceChildren();
+  if (!query) return;
+
+  const inTransaction = host.id === 'txCategoryLookup';
+  const categories = state.categories.filter(cat => !inTransaction || categoryAllowedForType(cat.name, txType));
+  const matches = categoryLookupMatches(query, categories, inTransaction);
+  for (const row of matches) {
+    const entry = document.createElement(inTransaction && row.current ? 'button' : 'div');
+    entry.className = 'category-lookup-row';
+    const detail = [row.path];
+    if (row.count) detail.push(`${row.count} past ${row.count === 1 ? 'entry' : 'entries'}`);
+    if (!row.current) detail.push('Historical path');
+    entry.innerHTML = `<strong>${escapeHtml(row.label)}</strong><small>${escapeHtml(detail.join(' · '))}</small>`;
+    if (entry instanceof HTMLButtonElement) {
+      entry.type = 'button';
+      entry.addEventListener('click', () => selectCategoryLookupPath(host, row));
+    }
+    results.append(entry);
+  }
+  if (!matches.length) results.textContent = 'No matching items or categories.';
+
+  const hasCategory = categories.some(cat => normalizeItemName(cat.name) === normalizeItemName(query));
+  const hasSubcategory = state.categories.some(cat => (cat.subs || []).some(sub => normalizeItemName(sub) === normalizeItemName(query)));
+  const hasCurrentItem = matches.some(row => row.current && row.count && normalizeItemName(row.label) === normalizeItemName(query));
+  const choices = [];
+  if (!hasCategory && !hasCurrentItem && (!inTransaction || categoryAllowedForType(query, txType))) {
+    choices.push(['category', '+ New category']);
+  }
+  if (categories.length && !hasSubcategory && !hasCurrentItem) choices.push(['subcategory', '+ New sub-category']);
+  for (const [kind, label] of choices) {
+    const button = document.createElement('button');
+    button.className = 'icon-btn';
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => openCategoryLookupAddition(host, kind, query, categories));
+    actions.append(button);
+  }
+  actions.hidden = !choices.length;
+}
+
+function selectCategoryLookupPath(host, row){
+  if (txHistoricalLocked) return;
+  populateCategoryOptions(row.categoryId);
+  populateSubcatOptions(row.subcategory);
+  txLookupSelection = {categoryId:row.categoryId, subcategory:row.subcategory};
+  refreshItemCategoryHint(false);
+  host.querySelector('input[type=search]').value = '';
+  host.querySelector('form').hidden = true;
+  renderCategoryLookup(host);
+  document.getElementById('txSubcategory').focus();
+}
+
+function openCategoryLookupAddition(host, kind, query, categories){
+  const form = host.querySelector('form');
+  const parent = form.querySelector('select');
+  const name = form.querySelector('input');
+  form.dataset.kind = kind;
+  parent.parentElement.hidden = kind === 'category';
+  parent.required = kind === 'subcategory';
+  parent.replaceChildren(new Option('Select parent category', ''));
+  categories.slice().sort((a,b) => alphaCompare(a.name,b.name))
+    .forEach(cat => parent.add(new Option(cat.name,cat.id)));
+  if (host.id === 'txCategoryLookup') parent.value = document.getElementById('txCategory').value;
+  else if (categories.length === 1) parent.value = categories[0].id;
+  name.value = query;
+  form.querySelector('[role=status]').hidden = true;
+  form.querySelector('[type=submit]').textContent = kind === 'category' ? 'Add category' : 'Add sub-category';
+  form.hidden = false;
+  (kind === 'subcategory' && !parent.value ? parent : name).focus();
+}
+
+function saveCategoryLookupAddition(host){
+  const form = host.querySelector('form');
+  const inTransaction = host.id === 'txCategoryLookup';
+  if (inTransaction && txHistoricalLocked) return;
+  const status = form.querySelector('[role=status]');
+  const showError = message => {
+    status.textContent = message;
+    status.hidden = false;
+  };
+  const name = form.querySelector('input').value.trim();
+  if (!name) { showError('Enter a name.'); return; }
+
+  let cat;
+  let subcategory = '';
+  if (form.dataset.kind === 'category') {
+    cat = state.categories.find(c => normalizeItemName(c.name) === normalizeItemName(name));
+    if (inTransaction && !categoryAllowedForType(name, txType)) {
+      showError('This category is unavailable for this transaction type.');
+      return;
+    }
+    if (!cat) {
+      cat = {id:uid(), name, subs:[]};
+      state.categories.push(cat);
+      cloudSaveMeta();
+    }
+  } else {
+    cat = state.categories.find(c => c.id === form.querySelector('select').value);
+    if (!cat || (inTransaction && !categoryAllowedForType(cat.name, txType))) {
+      showError('Select an available parent category.');
+      return;
+    }
+    const result = ensureSubcategory(cat, name);
+    if (result.error) { showError(result.error); return; }
+    subcategory = result.name;
+  }
+  form.hidden = true;
+  if (inTransaction) {
+    selectCategoryLookupPath(host, {categoryId:cat.id, subcategory});
+  } else {
+    host.querySelector('input[type=search]').value = subcategory || cat.name;
+    host.querySelector('input[type=search]').focus();
+  }
+  renderAll();
+}
+
 function collectMappingConflicts(){
   const issues=[];
   const subMap=new Map();
@@ -2179,6 +2411,7 @@ function renderMappingReview(){
   </details>`;
 }
 function renderCategories(){
+  document.querySelectorAll('[data-category-lookup]').forEach(renderCategoryLookup);
   renderMappingReview();
   const wrap = document.getElementById('categoriesList');
   if (!state.categories.length) { wrap.innerHTML = '<div class="empty-note">No categories yet.</div>'; return; }
@@ -2191,7 +2424,7 @@ function renderCategories(){
         </div>
       </div>
       <div class="subchips">
-        ${(c.subs||[]).slice().sort(alphaCompare).map(s=>`<span class="chip">${escapeHtml(s)}<button title="Edit / merge sub-category" onclick="editSubcat('${c.id}','${escapeAttr(s)}')">✎</button><button title="Remove unused sub-category" onclick="removeSubcat('${c.id}','${escapeAttr(s)}')">✕</button></span>`).join('')}
+        ${(c.subs||[]).slice().sort(alphaCompare).map(s=>`<span class="chip">${escapeHtml(s)}<button title="Edit / merge sub-category" data-category="${escapeHtml(c.id)}" data-sub="${escapeHtml(s)}" onclick="editSubcat(this.dataset.category,this.dataset.sub)">✎</button><button title="Remove unused sub-category" data-category="${escapeHtml(c.id)}" data-sub="${escapeHtml(s)}" onclick="removeSubcat(this.dataset.category,this.dataset.sub)">✕</button></span>`).join('')}
       </div>
       <div class="add-chip-inline">
         <input placeholder="Add sub-category" id="newsub-${c.id}">
@@ -2201,7 +2434,6 @@ function renderCategories(){
 }
 
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function escapeAttr(s){ return String(s??'').replace(/'/g,"\\'"); }
 function alphaCompare(a,b){ return String(a||'').localeCompare(String(b||''), undefined, {sensitivity:'base',numeric:true}); }
 function formatDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
 
@@ -2448,18 +2680,24 @@ function renderPriceTracker(){
 let txType = 'debit';
 let txQuickAddContext = null;
 function setTxType(t){
+  txLookupSelection = null;
   txType = t;
   document.getElementById('segDebit').classList.toggle('on', t==='debit');
   document.getElementById('segCredit').classList.toggle('on', t==='credit');
   populateCategoryOptions();
+  const lookup = document.getElementById('txCategoryLookup');
+  lookup.querySelector('form').hidden = true;
+  renderCategoryLookup(lookup);
+}
+
+function categoryAllowedForType(name, type){
+  return (normalizeItemName(name) === 'income') === (type === 'credit');
 }
 
 function populateCategoryOptions(selectedCatId){
   const catSel = document.getElementById('txCategory');
-  const filteredCategories = state.categories.filter(c => {
-    const isIncomeCat = c.name.toLowerCase() === 'income';
-    return txType === 'credit' ? isIncomeCat : !isIncomeCat;
-  }).sort((a,b)=>alphaCompare(a.name,b.name));
+  const filteredCategories = state.categories.filter(c => categoryAllowedForType(c.name, txType))
+    .sort((a,b)=>alphaCompare(a.name,b.name));
 
   const options = filteredCategories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   catSel.innerHTML = options || '<option value="">No matching category</option>';
@@ -2487,6 +2725,7 @@ function onTxAccountChange(){
   openAccountModal('', true);
 }
 function onTxCategoryChange(){
+  txLookupSelection = null;
   const sel = document.getElementById('txCategory');
   if (sel.value === '__add__') {
     sel.value = sel.dataset.previous || (state.categories[0] && state.categories[0].id) || '';
@@ -2507,6 +2746,7 @@ function onTxCategoryChange(){
   }
 }
 function onTxSubcategoryChange(){
+  txLookupSelection = null;
   const sel = document.getElementById('txSubcategory');
   if (sel.value !== '__add__') {
     sel.dataset.previous = sel.value;
@@ -2521,11 +2761,9 @@ function onTxSubcategoryChange(){
     sel.value = previous;
     return;
   }
-  const cleanName = name.trim();
-  cat.subs = cat.subs || [];
-  if (!cat.subs.some(s=>s.toLowerCase()===cleanName.toLowerCase())) cat.subs.push(cleanName);
-  cloudSaveMeta();
-  populateSubcatOptions(cleanName);
+  const result = ensureSubcategory(cat, name.trim());
+  if (result.error) { alert(result.error); sel.value = previous; return; }
+  populateSubcatOptions(result.name);
   refreshItemCategoryHint(false);
 }
 
@@ -2590,6 +2828,9 @@ function setHistoricalTxLock(locked){
     else el.readOnly=txHistoricalLocked;
   });
   ['segDebit','segCredit','itemToggleBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=txHistoricalLocked;});
+  const lookup = document.getElementById('txCategoryLookup');
+  lookup.hidden = txHistoricalLocked;
+  if (txHistoricalLocked) lookup.querySelector('form').hidden = true;
   const guard=document.getElementById('txHistoryGuard');
   if(guard) guard.style.display=txHistoricalLocked?'block':'none';
 }
@@ -2628,6 +2869,10 @@ function historicalChangeSummary(oldTx,newTx){
 }
 
 function openTxModal(id){
+  txLookupSelection = null;
+  const lookup = document.getElementById('txCategoryLookup');
+  lookup.querySelector('input[type=search]').value = '';
+  lookup.querySelector('form').hidden = true;
   resetTxModalPosition();
   document.getElementById('txDate').max = localDateStr(new Date());
   document.getElementById('txId').value = id || '';
@@ -2751,7 +2996,7 @@ function subcategoryAssignmentConflicts(subcategory, categoryId){
 function mappingConflictText(itemName, mappings){
   return `“${itemName}” has more than one saved mapping:\n\n`+
     mappings.map(m=>`• ${itemCategoryPath(m.categoryId,m.subcategory)} (${m.count} transaction${m.count===1?'':'s'})`).join('\n')+
-    '\n\nPlease correct the historical mapping before adding another transaction for this item.';
+    '\n\nChoose a saved path in category search or correct the historical mapping.';
 }
 function itemCategoryPath(categoryId, subcategory){
   const cat = state.categories.find(c=>c.id===categoryId);
@@ -2776,7 +3021,7 @@ function refreshItemCategoryHint(autoApply){
   }
   const catSel = document.getElementById('txCategory');
   const hasUsualCategory = [...catSel.options].some(o=>o.value===profile.categoryId);
-  if (autoApply && hasUsualCategory) {
+  if (autoApply && hasUsualCategory && !txLookupSelection) {
     catSel.value = profile.categoryId;
     catSel.dataset.previous = profile.categoryId;
     populateSubcatOptions(profile.subcategory);
@@ -2873,7 +3118,15 @@ function saveTx(){
   const itemName = document.getElementById('txItemName').value.trim();
   const selectedSubcategory = document.getElementById('txSubcategory').value;
   const itemConflict=getItemCategoryConflict(itemName,existingId);
-  if(itemConflict){alert(mappingConflictText(itemName,itemConflict));return;}
+  if (itemConflict) {
+    const explicitlySelected = txLookupSelection?.categoryId === selectedCategory &&
+      txLookupSelection.subcategory === selectedSubcategory;
+    const savedPath = itemConflict.some(m => m.categoryId === selectedCategory &&
+      normalizeItemName(m.subcategory) === normalizeItemName(selectedSubcategory));
+    if (!explicitlySelected || !savedPath) { alert(mappingConflictText(itemName,itemConflict)); return; }
+    const path = itemCategoryPath(selectedCategory, selectedSubcategory);
+    if (!confirm(`“${itemName}” has multiple saved paths. Use ${path} for this transaction?`)) return;
+  }
   if(!existingId && itemName){
     const near=nearDuplicateItemNames(itemName);
     if(near.length && !confirm(`Similar item name already exists: ${near.join(', ')}.\n\nKeep “${itemName}” as a separate item?`))return;
@@ -3147,6 +3400,8 @@ function saveCategory(){
   const name = document.getElementById('catName').value.trim();
   if (!name) { alert('Enter a category name.'); return; }
   const id = document.getElementById('catId').value || uid();
+  const duplicate = state.categories.find(c=>c.id!==id && normalizeItemName(c.name)===normalizeItemName(name));
+  if (duplicate) { alert(`Category “${duplicate.name}” already exists.`); return; }
   const idx = state.categories.findIndex(c=>c.id===id);
   if (idx>-1) state.categories[idx].name = name;
   else state.categories.push({id, name, subs:[]});
@@ -3170,16 +3425,23 @@ function deleteCurrentCategory(){
   renderAll();
   closeModal('catOverlay');
 }
+function ensureSubcategory(cat, name){
+  if (name === '__add__') return {error:'Choose another sub-category name.'};
+  const existing = (cat.subs || []).find(s=>normalizeItemName(s)===normalizeItemName(name));
+  if (existing) return {name:existing};
+  const owners = subcategoryOwners(name, cat.id);
+  if (owners.length) return {error:`“${name}” already exists under ${owners.map(c=>c.name).join(', ')}.`};
+  (cat.subs ||= []).push(name);
+  cloudSaveMeta();
+  return {name};
+}
 function addSubcat(catId){
   const input = document.getElementById('newsub-'+catId);
-  const val = input.value.trim();
-  if (!val) return;
+  const name = input.value.trim();
   const cat = state.categories.find(c=>c.id===catId);
-  const owners=subcategoryOwners(val,catId);
-  if(owners.length){alert(`“${val}” already exists under ${owners.map(c=>c.name).join(', ')}.\n\nA sub-category can belong to only one category.`);return;}
-  cat.subs = cat.subs || [];
-  if (!cat.subs.some(s=>normalizeItemName(s)===normalizeItemName(val))) cat.subs.push(val);
-  cloudSaveMeta();
+  if (!cat || !name) return;
+  const result = ensureSubcategory(cat, name);
+  if (result.error) { alert(result.error); return; }
   renderAll();
 }
 function editSubcat(catId, sub){
