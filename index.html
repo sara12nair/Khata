@@ -513,7 +513,7 @@ button.category-lookup-row:hover,button.category-lookup-row:focus-visible{backgr
       <div class="stamp">₹</div>
       <div>
         <div class="brand-title">Khata</div>
-        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261119-1242</div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">Cloud Sync Active ⚡ · Build 261121-2215</div>
       </div>
     </div>
     <div class="sync-pill off" id="syncPill"><span class="sync-dot"></span><span id="syncText">Offline</span></div>
@@ -662,6 +662,8 @@ button.category-lookup-row:hover,button.category-lookup-row:focus-visible{backgr
         <select id="shopCategory" onchange="populateShoppingSubcats()"><option value="">Category</option></select>
         <select id="shopSubcategory"><option value="">Item / sub-category</option></select>
       </div>
+      <button type="button" class="btn ghost" style="margin-top:8px;" onclick="addShoppingSubcategory()">+ Add sub-category</button>
+      <div id="shopSavedCategoryPath" role="status" hidden style="margin-top:7px;font-size:12px;"></div>
       <input id="shopNote" style="width:100%;margin-top:8px;" placeholder="Item note (optional)">
       <div id="shopHistoryHint" style="display:none;margin-top:7px;font-size:11px;color:var(--ink-soft)"></div>
       <div class="shop-actions">
@@ -4025,6 +4027,7 @@ function openShoppingTripShop(id){
     document.getElementById('shopEstimate').value='';document.getElementById('shopEstimate').dataset.manual='';
     document.getElementById('shopNote').value='';
   }
+  refreshShoppingHistoryHint();refreshShoppingCategorySuggestion(false);
   document.getElementById('shopItem').focus();
 }
 function closeShoppingItemEditor(){
@@ -4049,7 +4052,30 @@ function populateShoppingSubcats(selected=''){
   const cat=state.categories.find(c=>c.id===catId);
   const subs=(cat?.subs||[]).slice().sort(alphaCompare);
   el.innerHTML='<option value="">Item / sub-category</option>'+subs.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
-  if(selected && subs.includes(selected))el.value=selected;
+  if(selected){
+    const saved=subs.find(s=>normalizeItemName(s)===normalizeItemName(selected));
+    if(saved)el.value=saved;
+  }
+}
+function addShoppingSubcategory(){
+  const category = document.getElementById('shopCategory');
+  const cat = state.categories.find(c=>c.id===category.value);
+  if (!cat) {
+    alert('Select a category first.');
+    category.focus();
+    return;
+  }
+  const item = document.getElementById('shopItem').value.trim();
+  const name = prompt('Add a sub-category under '+cat.name+':',item)?.trim();
+  if (!name) return;
+  const result = ensureSubcategory(cat,name);
+  if (result.error) {
+    alert(result.error);
+    return;
+  }
+  populateShoppingSubcats(result.name);
+  showShoppingCategoryPaths([{categoryId:cat.id,subcategory:result.name}]);
+  document.getElementById('shopSubcategory').focus();
 }
 function inferShoppingCategory(itemName){
   const name=normalizeItemName(itemName);
@@ -4078,9 +4104,28 @@ function inferShoppingCategory(itemName){
   }
   return cat?{categoryId:cat.id,subcategory:sub}:null;
 }
-function refreshShoppingCategorySuggestion(){
-  const item=document.getElementById('shopItem')?.value.trim()||'';
-  const p=getItemCategoryProfile(item)||inferShoppingCategory(item);
+function showShoppingCategoryPaths(paths){
+  const hint=document.getElementById('shopSavedCategoryPath');
+  hint.hidden=!paths.length;
+  hint.textContent=paths.length?'Saved: '+paths.map(p=>itemCategoryPath(p.categoryId,p.subcategory)).join(' / '):'';
+}
+function getSavedShoppingCategoryPaths(item){
+  const paths=getItemCategoryMappings(item);
+  const key=normalizeItemName(item);
+  for(const owner of subcategoryOwners(item)){
+    const subcategory=owner.subs.find(s=>normalizeItemName(s)===key);
+    if(!paths.some(p=>p.categoryId===owner.id&&normalizeItemName(p.subcategory)===key)){
+      paths.push({categoryId:owner.id,subcategory});
+    }
+  }
+  return paths.filter(p=>p.subcategory||!paths.some(other=>other.categoryId===p.categoryId&&other.subcategory));
+}
+function refreshShoppingCategorySuggestion(apply=true){
+  const item=document.getElementById('shopItem').value.trim();
+  const paths=getSavedShoppingCategoryPaths(item);
+  showShoppingCategoryPaths(paths);
+  if(!apply||paths.length>1)return;
+  const p=paths[0]||inferShoppingCategory(item);
   if(p){populateShoppingCategoryOptions(p.categoryId);populateShoppingSubcats(p.subcategory);}
 }
 function addShoppingItem(){
@@ -4099,7 +4144,7 @@ function addShoppingItem(){
   if(!estimate && qty && rate){calculateShoppingEstimate();estimate=parseFloat(document.getElementById('shopEstimate').value)||0;}
   const knownCategory=getItemCategoryProfile(item)||inferShoppingCategory(item);
   const chosenCategory=document.getElementById('shopCategory')?.value||knownCategory?.categoryId||'';
-  const chosenSubcategory=document.getElementById('shopSubcategory')?.value||knownCategory?.subcategory||'';
+  const chosenSubcategory=document.getElementById('shopSubcategory')?.value||(knownCategory?.categoryId===chosenCategory?knownCategory?.subcategory:'')||'';
   const data={item,qty,unit,rate,rateUnit,estimate,actual:0,store:shop.name,note:document.getElementById('shopNote').value.trim(),done:false,accountId:'',paymentMethod:'',txId:'',tripShopId:shop.id,categoryId:chosenCategory,subcategory:chosenSubcategory,createdAt:new Date().toISOString()};
   if(editingShoppingId){
     const old=state.shoppingList.find(x=>x.id===editingShoppingId);
@@ -4126,6 +4171,7 @@ function editShoppingItem(id){
   document.getElementById('shopEstimate').dataset.manual=(!Number(i.rate) && Number(i.estimate))?'1':'';
   document.getElementById('shopNote').value=i.note||'';
   populateShoppingCategoryOptions(i.categoryId||'');populateShoppingSubcats(i.subcategory||'');
+  refreshShoppingHistoryHint();refreshShoppingCategorySuggestion(false);
   const b=document.querySelector('#shoppingItemEditor .shop-actions .btn.primary');if(b)b.textContent='Save item';
 }
 function renderShoppingList(){
